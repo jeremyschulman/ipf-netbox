@@ -1,1 +1,1 @@
-from . import cli_inventory
+from . import cli_inventory  # noqa

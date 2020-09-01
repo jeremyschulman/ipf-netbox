@@ -67,5 +67,3 @@ def inventory(ofile, limit, exclude):
     print(f"Saving inventory CSV to: {ofile}")
     ipf.to_csv(list(iter_recs), ofile, fieldnames=CSV_FIELDNAMES)
     sys.exit(0)
-
-
