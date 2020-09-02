@@ -1,3 +1,4 @@
 click
 httpx
 aio-ipfabric
+tabulate

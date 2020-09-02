@@ -20,8 +20,6 @@
 import sys
 import os
 from operator import itemgetter
-from pathlib import Path
-import json
 
 # -----------------------------------------------------------------------------
 # Public Imports
@@ -35,7 +33,8 @@ from aioipfabric import IPFabricClient
 # -----------------------------------------------------------------------------
 
 from ipfnbtk.cli.filtering import create_filter
-from ipfnbtk.netbox import NetboxClient
+from ipfnbtk.netbox.client import NetboxClient
+from ipfnbtk import cache
 from ipfnbtk.cli.__main__ import cli
 
 # -----------------------------------------------------------------------------
@@ -48,15 +47,15 @@ from ipfnbtk.cli.__main__ import cli
 SOURCE_LIST = ["ipfabric", "netbox"]
 
 # These environment variables must be set to use this script:
-ENV_VARS = ["IPF_ADDR", "IPF_USERNAME", "IPF_PASSWORD"]
+IPF_ENV_VARS = ["IPF_ADDR", "IPF_USERNAME", "IPF_PASSWORD"]
 
 # These device fields will be stored into the CSV file in this order:
 IPF_FIELDNAMES = ["hostname", "siteName", "vendor", "platform", "family", "version"]
-NB_FIELDNAMES = ['platform', 'name', 'site', 'status', 'role']
+NB_FIELDNAMES = ["platform", "name", "site", "status", "role"]
 
 
 try:
-    ipf_addr, ipf_username, ipf_pw = itemgetter(*ENV_VARS)(os.environ)
+    ipf_addr, ipf_username, ipf_pw = itemgetter(*IPF_ENV_VARS)(os.environ)
     nb_addr, nb_token = itemgetter(*NetboxClient.ENV_VARS)(os.environ)
 
 except KeyError as exc:
@@ -80,12 +79,6 @@ def filter_snapshot(devices, fieldnames, limit, exclude):
     return iter_recs
 
 
-def save_snapshot(iter_recs, filename):
-    ofile = Path(os.environ["IPFNB_CACHEDIR"]).joinpath(filename)
-    print(f"IP FABRIC: Saving inventory JSON to: {ofile.absolute()}")
-    json.dump(list(iter_recs), ofile.open("w+"), indent=3)
-
-
 def snapshot_ipfabric(limit, exclude):
     ipf = IPFabricClient()
     print("IP FABRIC: Fetching device inventory")
@@ -94,7 +87,7 @@ def snapshot_ipfabric(limit, exclude):
     fieldnames = IPF_FIELDNAMES
 
     iter_recs = filter_snapshot(devices, fieldnames, limit, exclude)
-    save_snapshot(iter_recs, "ipf.inventory.json")
+    cache.cache_dump(list(iter_recs), "ipfabric", "inventory")
 
 
 def snapshot_netbox(limit, exclude):
@@ -119,7 +112,7 @@ def snapshot_netbox(limit, exclude):
 
     iter_recs = iter(devices)
     iter_recs = filter_snapshot(iter_recs, fieldnames, limit, exclude)
-    save_snapshot(iter_recs, "nb.inventory.json")
+    cache.cache_dump(list(iter_recs), "netbox", "inventory")
 
 
 @cli.command()

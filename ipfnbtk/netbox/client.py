@@ -30,7 +30,7 @@ class NetboxClient(AsyncClient):
         res = await self.get(
             "/dcim/devices",
             timeout=timeout,
-            params={"limit": 0, "exclude": "config_context", 'platform__n': 'null'},
+            params={"limit": 0, "exclude": "config_context", "platform__n": "null"},
         )
         res.raise_for_status()
         body = res.json()
