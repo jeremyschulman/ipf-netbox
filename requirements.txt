@@ -2,3 +2,5 @@ click
 httpx
 aio-ipfabric
 tabulate
+pydantic_env
+toml

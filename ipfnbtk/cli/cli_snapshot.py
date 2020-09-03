@@ -20,6 +20,7 @@
 import sys
 import os
 from operator import itemgetter
+from types import MappingProxyType
 
 # -----------------------------------------------------------------------------
 # Public Imports
@@ -36,6 +37,7 @@ from ipfnbtk.cli.filtering import create_filter
 from ipfnbtk.netbox.client import NetboxClient
 from ipfnbtk import cache
 from ipfnbtk.cli.__main__ import cli
+from ipfnbtk.config_models import ConfigModel
 
 # -----------------------------------------------------------------------------
 #
@@ -43,8 +45,7 @@ from ipfnbtk.cli.__main__ import cli
 #
 # -----------------------------------------------------------------------------
 
-# Snapshot Sources
-SOURCE_LIST = ["ipfabric", "netbox"]
+
 
 # These environment variables must be set to use this script:
 IPF_ENV_VARS = ["IPF_ADDR", "IPF_USERNAME", "IPF_PASSWORD"]
@@ -115,22 +116,39 @@ def snapshot_netbox(limit, exclude):
     cache.cache_dump(list(iter_recs), "netbox", "inventory")
 
 
+SOURCE_SNAPSHOT = MappingProxyType({
+    'netbox': snapshot_netbox,
+    'ipfabric': snapshot_ipfabric
+})
+
+
 @cli.command()
 @click.option("--limit", multiple=True, help="limit records", is_eager=True)
 @click.option("--exclude", multiple=True, help="exclude records", is_eager=True)
 @click.option(
     "--source",
-    required=True,
     multiple=True,
     help="Source system(s)",
-    type=click.Choice(SOURCE_LIST),
+    type=click.Choice(SOURCE_SNAPSHOT),
+    default=list(SOURCE_SNAPSHOT)
 )
-def snapshot(source, **kwargs):
+@click.pass_context
+def snapshot(ctx, source, limit, exclude, **kwargs):
     """
     Create an inventory snapshot file from IP Fabric device inventory
     """
-    if "ipfabric" in source:
-        snapshot_ipfabric(**kwargs)
+    config: ConfigModel = ctx.parent.params['config']
 
-    if "netbox" in source:
-        snapshot_netbox(**kwargs)
+    for source_name in source:
+        source_cfg = config.sources[source_name]
+        source_kwargs = {
+            'limit': limit or source_cfg.limit,
+            'exclude': exclude or source_cfg.exclude
+        }
+        SOURCE_SNAPSHOT[source_name](**source_kwargs)
+
+    # if "ipfabric" in source:
+    #     snapshot_ipfabric(**kwargs)
+    #
+    # if "netbox" in source:
+    #     snapshot_netbox(**kwargs)

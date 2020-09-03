@@ -39,8 +39,10 @@ do_strip = partial(re.compile(any_domain).sub, repl="")
 
 def make_keyset(devices, key_fields):
     def normalize_key(host):
-        return do_strip(string=host.lower())
-
+        try:
+            return do_strip(string=host.lower())
+        except:
+            breakpoint()
     return {normalize_key(key_fields(rec)): rec for rec in devices}
 
 
