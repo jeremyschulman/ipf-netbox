@@ -45,8 +45,6 @@ from ipfnbtk.config_models import ConfigModel
 #
 # -----------------------------------------------------------------------------
 
-
-
 # These environment variables must be set to use this script:
 IPF_ENV_VARS = ["IPF_ADDR", "IPF_USERNAME", "IPF_PASSWORD"]
 
@@ -116,10 +114,9 @@ def snapshot_netbox(limit, exclude):
     cache.cache_dump(list(iter_recs), "netbox", "inventory")
 
 
-SOURCE_SNAPSHOT = MappingProxyType({
-    'netbox': snapshot_netbox,
-    'ipfabric': snapshot_ipfabric
-})
+SOURCE_SNAPSHOT = MappingProxyType(
+    {"netbox": snapshot_netbox, "ipfabric": snapshot_ipfabric}
+)
 
 
 @cli.command()
@@ -130,25 +127,19 @@ SOURCE_SNAPSHOT = MappingProxyType({
     multiple=True,
     help="Source system(s)",
     type=click.Choice(SOURCE_SNAPSHOT),
-    default=list(SOURCE_SNAPSHOT)
+    default=list(SOURCE_SNAPSHOT),
 )
 @click.pass_context
-def snapshot(ctx, source, limit, exclude, **kwargs):
+def snapshot(ctx, source, limit, exclude, **_kwargs):
     """
     Create an inventory snapshot file from IP Fabric device inventory
     """
-    config: ConfigModel = ctx.parent.params['config']
+    config: ConfigModel = ctx.parent.params["config"]
 
     for source_name in source:
         source_cfg = config.sources[source_name]
         source_kwargs = {
-            'limit': limit or source_cfg.limit,
-            'exclude': exclude or source_cfg.exclude
+            "limit": limit or source_cfg.limit,
+            "exclude": exclude or source_cfg.exclude,
         }
         SOURCE_SNAPSHOT[source_name](**source_kwargs)
-
-    # if "ipfabric" in source:
-    #     snapshot_ipfabric(**kwargs)
-    #
-    # if "netbox" in source:
-    #     snapshot_netbox(**kwargs)

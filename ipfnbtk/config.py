@@ -1,7 +1,9 @@
 from io import FileIO
 import toml
 
-from .config_models import ConfigModel, ValidationError, config_validation_errors
+from pydantic import ValidationError
+from pydantic_env import config_validation_errors
+from .config_models import ConfigModel
 
 
 def load_config_file(filepath: FileIO):
@@ -9,7 +11,6 @@ def load_config_file(filepath: FileIO):
         return ConfigModel.parse_obj(toml.load(filepath))
 
     except ValidationError as exc:
-        raise RuntimeError(config_validation_errors(
-            errors=exc.errors(),
-            filepath=filepath.name
-        ))
+        raise RuntimeError(
+            config_validation_errors(errors=exc.errors(), filepath=filepath.name)
+        )

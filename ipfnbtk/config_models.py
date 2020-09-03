@@ -1,10 +1,7 @@
 from typing import Optional, List, Dict
 
 
-from pydantic_env.models import (
-    NoExtraBaseModel,
-    ValidationError, config_validation_errors         # noqa - for imports
-)
+from pydantic_env.models import NoExtraBaseModel
 
 
 class DefaultsModel(NoExtraBaseModel):
@@ -19,4 +16,3 @@ class SourceModel(NoExtraBaseModel):
 class ConfigModel(NoExtraBaseModel):
     defaults: DefaultsModel
     sources: Dict[str, SourceModel]
-
