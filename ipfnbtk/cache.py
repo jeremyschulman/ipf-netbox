@@ -7,6 +7,13 @@ import os
 from pathlib import Path
 import pickle
 
+CACHE_DEVICE_INVENTORY = "device.inventory"
+CACHE_DEVICE_MISSING = "device.missing"
+
+CACHE_DEVICE_ACTIONS = "device.actions"
+CACHE_SERAILNUMBER_ACTIONS = "serialnumber.actions"
+
+
 try:
     _CACHEDIR = Path(os.environ["IPFNB_CACHEDIR"])
     assert _CACHEDIR.is_dir(), f"{str(_CACHEDIR)} is not a directory"

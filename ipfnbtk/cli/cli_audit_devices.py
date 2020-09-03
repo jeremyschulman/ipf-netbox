@@ -1,14 +1,37 @@
+# -----------------------------------------------------------------------------
+# System Imports
+# -----------------------------------------------------------------------------
+
 from operator import itemgetter
 
-import click
+# -----------------------------------------------------------------------------
+# Public Imports
+# -----------------------------------------------------------------------------
+
 from tabulate import tabulate
 
-from .cli_audit import cli_audit
+# -----------------------------------------------------------------------------
+# Private Imports
+# -----------------------------------------------------------------------------
 
+from .cli_audit import cli_audit
 from ipfnbtk.devices import audit
 
+# -----------------------------------------------------------------------------
+# Exports
+# -----------------------------------------------------------------------------
 
-@cli_audit.command(name='devices')
+__all__ = ["audit"]
+
+
+# -----------------------------------------------------------------------------
+#
+#                              CODE BEGINS
+#
+# -----------------------------------------------------------------------------
+
+
+@cli_audit.command(name="devices")
 def audit_devices():
     """
     Run audit between IPF and Netbox device inventories
@@ -25,7 +48,8 @@ def audit_devices():
 
     if (
         tabular_data := [
-            (rec["key"], *rec_fields(rec["data"])) for rec in results["netbox"]
+            (rec["key"], *rec_fields(rec["data"]))
+            for rec in results["netbox"]["actions"]
         ]
     ) :
         print("\nNetbox Actions: Add/verify devices\n")
@@ -49,10 +73,13 @@ def audit_devices():
     if (
         tabular_data := [
             (rec["key"], rec["data"]["site"], rec["data"]["ipaddr"])
-            for rec in results["ipfabric"]
+            for rec in results["ipfabric"]["actions"]
         ]
     ) :
         tabular_data.sort(key=itemgetter(1, 0))
 
-        print(tabulate(headers=["device", "site", "ipaddr"], tabular_data=tabular_data), "\n")
+        print(
+            tabulate(headers=["device", "site", "ipaddr"], tabular_data=tabular_data),
+            "\n",
+        )
         print("IP address list:", ",".join(map(itemgetter(2), tabular_data)), "\n")

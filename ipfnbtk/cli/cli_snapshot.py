@@ -86,7 +86,7 @@ def snapshot_ipfabric(limit, exclude):
     fieldnames = IPF_FIELDNAMES
 
     iter_recs = filter_snapshot(devices, fieldnames, limit, exclude)
-    cache.cache_dump(list(iter_recs), "ipfabric", "inventory")
+    cache.cache_dump(list(iter_recs), "ipfabric", cache.CACHE_DEVICE_INVENTORY)
 
 
 def snapshot_netbox(limit, exclude):
@@ -111,7 +111,7 @@ def snapshot_netbox(limit, exclude):
 
     iter_recs = iter(devices)
     iter_recs = filter_snapshot(iter_recs, fieldnames, limit, exclude)
-    cache.cache_dump(list(iter_recs), "netbox", "inventory")
+    cache.cache_dump(list(iter_recs), "netbox", cache.CACHE_DEVICE_INVENTORY)
 
 
 SOURCE_SNAPSHOT = MappingProxyType(
