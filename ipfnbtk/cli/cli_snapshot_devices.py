@@ -34,7 +34,7 @@ from aioipfabric import IPFabricClient
 # -----------------------------------------------------------------------------
 
 from ipfnbtk.cli.filtering import create_filter
-from ipfnbtk.netbox.client import NetboxClient
+from ipfnbtk.sources.netbox.client import NetboxClient
 
 from ipfnbtk import cache
 from ipfnbtk.config_models import ConfigModel

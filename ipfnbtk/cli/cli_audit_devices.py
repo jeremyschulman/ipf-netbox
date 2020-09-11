@@ -15,7 +15,7 @@ from tabulate import tabulate
 # -----------------------------------------------------------------------------
 
 from .cli_audit import cli_audit
-from ipfnbtk.devices import audit
+from ipfnbtk.collections.devices import audit
 
 # -----------------------------------------------------------------------------
 # Exports

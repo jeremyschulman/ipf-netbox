@@ -2,8 +2,14 @@
 # System Imports
 # -----------------------------------------------------------------------------
 
-from typing import Dict, List
+from typing import Dict, List, Optional, Set, Hashable
 from operator import itemgetter
+
+# -----------------------------------------------------------------------------
+# Public Imports
+# -----------------------------------------------------------------------------
+
+from pydantic import BaseModel, IPvAnyAddress
 
 # -----------------------------------------------------------------------------
 # Private Imports
@@ -11,13 +17,24 @@ from operator import itemgetter
 
 from ipfnbtk import cache
 from ipfnbtk.normalize_hostname import normalize_hostname
+from .collection import Collection
 
 # -----------------------------------------------------------------------------
 # Exports
 # -----------------------------------------------------------------------------
 
-__all__ = ["audit"]
+__all__ = ["DeviceCollection"]
 
+
+class DeviceCollection(Collection):
+
+    FINGERPRINT_FIELDS = {
+        'id', 'sn', 'hostname', 'ipaddr', 'site'
+    }
+
+    KEY_FIELDS = {
+        'sn'
+    }
 
 # -----------------------------------------------------------------------------
 #
