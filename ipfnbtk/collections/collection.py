@@ -2,9 +2,8 @@ from typing import Optional, List, Dict, Set, Hashable
 from abc import ABC
 from operator import itemgetter
 
-from pydantic import BaseModel
 
-__all__ = ['Collection']
+__all__ = ["Collection"]
 
 
 class Collection(ABC):
@@ -19,16 +18,13 @@ class Collection(ABC):
         self.keys: Optional[Set[Hashable]] = None
 
     async def fetch(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def make_fingerprints(self):
-        self.fingerprints = [
-            self.fingerprint(rec)
-            for rec in self.inventory
-        ]
+        self.fingerprints = [self.fingerprint(rec) for rec in self.inventory]
 
     def fingerprint(self, rec: Dict) -> Dict:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def make_keys(self, fields=None):
         if not self.fingerprints:
@@ -38,9 +34,8 @@ class Collection(ABC):
         self.keys = set(map(fieldsgetter, self.fingerprints))
 
     def audit(self, other_collection):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def reconcile(self):
         if not self.actions:
             raise RuntimeError("Missing audit actions")
-

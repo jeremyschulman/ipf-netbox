@@ -1,1 +1,1 @@
-from .collections.devices import NetboxDeviceCollection
+from .collections.devices import NetboxDeviceCollection  # noqa

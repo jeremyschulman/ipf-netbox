@@ -1,1 +1,1 @@
-from .collections.devices import IPFabricDeviceCollection
+from .collections.devices import IPFabricDeviceCollection  # noqa

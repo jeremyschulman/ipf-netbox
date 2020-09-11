@@ -7,7 +7,6 @@ from ipfnbtk.collections.devices import DeviceCollection
 
 
 class IPFabricDeviceCollection(DeviceCollection):
-
     def __init__(self):
         ipf_env = IPFabricClient.ENV
         try:
@@ -15,18 +14,18 @@ class IPFabricDeviceCollection(DeviceCollection):
         except KeyError as exc:
             raise RuntimeError(f"Missing environment variable: {exc.args[0]}")
 
-        super(IPFabricDeviceCollection, self).__init__(name='ipfabric')
+        super(IPFabricDeviceCollection, self).__init__(name="ipfabric")
         self.client = IPFabricClient()
 
     async def fetch(self):
         res = await self.client.fetch_devices()
-        self.inventory = res['data']
+        self.inventory = res["data"]
 
     def fingerprint(self, rec: Dict) -> Dict:
         return dict(
-            id=rec['id'],
-            sn=rec['sn'],
-            hostname=rec['hostname'],
-            ipaddr=rec['loginIp'],
-            site=rec['siteName'],
+            id=rec["id"],
+            sn=rec["sn"],
+            hostname=rec["hostname"],
+            ipaddr=rec["loginIp"],
+            site=rec["siteName"],
         )

@@ -24,8 +24,9 @@ class NetboxClient(AsyncClient):
             verify=False,
         )
 
-    async def paginate(self, url: str, page_sz: Optional[int] = None,
-                       filters: Optional[Dict] = None) -> List[Dict]:
+    async def paginate(
+        self, url: str, page_sz: Optional[int] = None, filters: Optional[Dict] = None
+    ) -> List[Dict]:
         """
         Concurrently paginate GET on url for the given page_sz and optional
         Caller filters (Netbox API specific).  Return the list of all page
@@ -51,30 +52,29 @@ class NetboxClient(AsyncClient):
         # items.
 
         params = filters or {}
-        params['limit'] = 1
+        params["limit"] = 1
 
         res = await self.get(url, params=params)
         res.raise_for_status()
         body = res.json()
-        count = body['count']
+        count = body["count"]
 
         # create a list of tasks to run concurrently to fetch the data in pages.
         # NOTE: that we _MUST_ do a params.copy() to ensure that each task has a
         # unique offset count.  Observed that if copy not used then all tasks have
         # the same (last) value.
 
-        params['limit'] = page_sz or self.DEFAULT_PAGE_SZ
+        params["limit"] = page_sz or self.DEFAULT_PAGE_SZ
         tasks = list()
 
-        for offset in range(0, count, params['limit']):
-            params['offset'] = offset
+        for offset in range(0, count, params["limit"]):
+            params["offset"] = offset
             tasks.append(self.get(url, params=params.copy()))
 
         task_results = await asyncio.gather(*tasks)
 
         # return the flattened list of results
 
-        return list(chain.from_iterable(
-            task_r.json()['results']
-            for task_r in task_results)
+        return list(
+            chain.from_iterable(task_r.json()["results"] for task_r in task_results)
         )

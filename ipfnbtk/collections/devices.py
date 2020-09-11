@@ -2,14 +2,8 @@
 # System Imports
 # -----------------------------------------------------------------------------
 
-from typing import Dict, List, Optional, Set, Hashable
+from typing import Dict, List
 from operator import itemgetter
-
-# -----------------------------------------------------------------------------
-# Public Imports
-# -----------------------------------------------------------------------------
-
-from pydantic import BaseModel, IPvAnyAddress
 
 # -----------------------------------------------------------------------------
 # Private Imports
@@ -28,13 +22,9 @@ __all__ = ["DeviceCollection"]
 
 class DeviceCollection(Collection):
 
-    FINGERPRINT_FIELDS = {
-        'id', 'sn', 'hostname', 'ipaddr', 'site'
-    }
+    FINGERPRINT_FIELDS = {"id", "sn", "hostname", "ipaddr", "site"}
+    KEY_FIELDS = {"sn"}
 
-    KEY_FIELDS = {
-        'sn'
-    }
 
 # -----------------------------------------------------------------------------
 #
