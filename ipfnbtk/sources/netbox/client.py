@@ -3,6 +3,7 @@ import asyncio
 from os import environ
 from operator import itemgetter
 from itertools import chain
+from functools import lru_cache
 
 
 from httpx import AsyncClient
@@ -78,3 +79,10 @@ class NetboxClient(AsyncClient):
         return list(
             chain.from_iterable(task_r.json()["results"] for task_r in task_results)
         )
+
+
+@lru_cache()
+def get_client():
+    nb = NetboxClient()
+    nb.timeout = 30
+    return nb

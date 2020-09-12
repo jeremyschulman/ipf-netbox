@@ -13,15 +13,19 @@ class Collection(ABC):
 
     def __init__(self):
         self.inventory = None
-        self.actions: Optional[List[Dict]] = None
-        self.fingerprints: Optional[List[Dict]] = None
+        self.fingerprints: [List[Dict]] = list()
         self.keys: Optional[Set[Hashable]] = None
 
     async def fetch(self):
         raise NotImplementedError()
 
     def make_fingerprints(self):
-        self.fingerprints = [self.fingerprint(rec) for rec in self.inventory]
+        self.fingerprints.clear()
+        for rec in self.inventory:
+            try:
+                self.fingerprints.append(self.fingerprint(rec))
+            except Exception as exc:
+                raise RuntimeError("Fingerprint failed", rec, exc)
 
     def fingerprint(self, rec: Dict) -> Dict:
         raise NotImplementedError()
@@ -34,8 +38,7 @@ class Collection(ABC):
         self.keys = set(map(fieldsgetter, self.fingerprints))
 
     def audit(self, other_collection):
-        raise NotImplementedError()
+        pass
 
     def reconcile(self):
-        if not self.actions:
-            raise RuntimeError("Missing audit actions")
+        pass

@@ -1,24 +1,35 @@
-from typing import Dict
-import os
-from operator import itemgetter
+# -----------------------------------------------------------------------------
+# System Imports
+# -----------------------------------------------------------------------------
 
-from aioipfabric.client import IPFabricClient
+from typing import Dict
+
+# -----------------------------------------------------------------------------
+# Private Imports
+# -----------------------------------------------------------------------------
+
 from ipfnbtk.collections.devices import DeviceCollection
+from ..client import get_client
+
+# -----------------------------------------------------------------------------
+# Exports
+# -----------------------------------------------------------------------------
+
+__all__ = ["IPFabricDeviceCollection"]
+
+
+# -----------------------------------------------------------------------------
+#
+#                              CODE BEGINS
+#
+# -----------------------------------------------------------------------------
 
 
 class IPFabricDeviceCollection(DeviceCollection):
-    def __init__(self):
-        ipf_env = IPFabricClient.ENV
-        try:
-            itemgetter(ipf_env.addr, ipf_env.username, ipf_env.password)(os.environ)
-        except KeyError as exc:
-            raise RuntimeError(f"Missing environment variable: {exc.args[0]}")
-
-        super(IPFabricDeviceCollection, self).__init__(name="ipfabric")
-        self.client = IPFabricClient()
+    name = "ipfabric"
 
     async def fetch(self):
-        res = await self.client.fetch_devices()
+        res = await get_client().fetch_devices()
         self.inventory = res["data"]
 
     def fingerprint(self, rec: Dict) -> Dict:
@@ -28,4 +39,7 @@ class IPFabricDeviceCollection(DeviceCollection):
             hostname=rec["hostname"],
             ipaddr=rec["loginIp"],
             site=rec["siteName"],
+            os_name=rec["family"],
+            vendor=rec["vendor"],
+            model=rec["platform"],
         )
