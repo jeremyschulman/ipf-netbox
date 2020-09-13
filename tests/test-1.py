@@ -70,7 +70,13 @@ other.make_fingerprints(with_filter=otr_filter_func)
 source.make_keys("hostname", with_translate=normalize_hostname)
 other.make_keys("hostname", with_translate=normalize_hostname)
 
-missing, changes = diff.diff(source, other, ignore_fields=["os_name", "hostname"])
+comparitors = {
+    "sn": str.upper,
+    "model": str.upper,
+    "os_name": lambda f: f.replace("-", ""),
+}
+
+missing, changes = diff.diff(source, other, fields_cmp=comparitors)
 
 
 missing_sn = [
@@ -78,14 +84,33 @@ missing_sn = [
 ]
 
 wrong_sn = [
-    [fp["hostname"], fp["model"], fp["sn"], change["model"], change["sn"]]
+    [
+        fp["hostname"],
+        fp["os_name"],
+        fp["model"],
+        change.get("model") or fp["model"],
+        fp["sn"],
+        change["sn"],
+    ]
     for fp, change in changes
     if "sn" in change and fp["sn"] != ""
 ]
 
+wrong_model = [
+    [fp["hostname"], fp["os_name"], fp["model"], change["model"]]
+    for fp, change in changes
+    if "model" in change
+]
+
 print(
     tabulate(
-        headers=["hostname", "Model", "SN", "actual Model", "actual SN"],
+        headers=["hostname", "OS", "Model", "actual Model", "SN", "actual SN"],
         tabular_data=wrong_sn,
+    )
+)
+
+print(
+    tabulate(
+        headers=["hostname", "OS", "Model", "actual Model"], tabular_data=wrong_model,
     )
 )

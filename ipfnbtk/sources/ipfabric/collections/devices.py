@@ -41,5 +41,5 @@ class IPFabricDeviceCollection(DeviceCollection):
             site=rec["siteName"],
             os_name=rec["family"],
             vendor=rec["vendor"],
-            model=rec["platform"],
+            model=rec["model"],
         )

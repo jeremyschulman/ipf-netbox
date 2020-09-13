@@ -1,9 +1,13 @@
+from typing import Dict, Callable
+from collections import namedtuple
+
 from .collection import Collection
 
-import jsonpatch
+MissingKeyItem = namedtuple("MissingKeyItem", ["key", "other_fp"])
+ChangeItem = namedtuple("ChangedItem", ["source_fp", "changes"])
 
 
-def diff(source: Collection, other: Collection, ignore_fields=None):
+def diff(source: Collection, other: Collection, fields_cmp: Dict[str, Callable]):
     """
     The source and other collections have already been fetched, fingerprinted, and keyed.
     This method is used to create a diff report so that action can be taken to account for
@@ -17,14 +21,17 @@ def diff(source: Collection, other: Collection, ignore_fields=None):
     other:
         The other collection that is used to compare differences against the source.
 
-    ignore_fields:
-        List of fingerprint fields to ignore during comparison process
+    fields_cmp:
+        Dictionary mapping the field name to a function used to "normalize" the
+        value so that it can be compared.  A common function would be
+        `str.lower` to convert a field (hostname) to lower for comparison
+        purposes.
 
     Returns
     -------
     Tuple
-        missing_key_items: List
-        changes: List
+        missing_key_items: List[Tuple]
+        changes: List[Tuple[Dict, Dict]]
     """
     other_keys = set(other.keys)
     source_keys = set(source.keys)
@@ -32,28 +39,21 @@ def diff(source: Collection, other: Collection, ignore_fields=None):
     missing_keys = other_keys - source_keys
     shared_keys = source_keys & other_keys
 
-    missing_key_items = [(key, other.keys[key]) for key in missing_keys]
+    missing_key_items = [MissingKeyItem(key, other.keys[key]) for key in missing_keys]
 
     changes = list()
-
-    if ignore_fields:
-        ignore_fields = ["/_id"] + ["/" + field for field in ignore_fields]
-    else:
-        ignore_fields = ["/_id"]
 
     for key in shared_keys:
         source_fp = source.keys[key]
         other_fp = other.keys[key]
 
-        patch = jsonpatch.make_patch(source_fp, other_fp).patch
+        item_changes = dict()
 
-        if len(
-            item_changes := {
-                item["path"][1:]: item["value"]
-                for item in patch
-                if item["op"] == "replace" and item["path"] not in ignore_fields
-            }
-        ):
-            changes.append((source_fp, item_changes))
+        for field, field_fn in fields_cmp.items():
+            if field_fn(source_fp[field]) != field_fn(other_fp[field]):
+                item_changes[field] = other_fp[field]
+
+        if len(item_changes):
+            changes.append(ChangeItem(source_fp, item_changes))
 
     return missing_key_items, changes
