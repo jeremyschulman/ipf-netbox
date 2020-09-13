@@ -26,7 +26,7 @@ __all__ = ["NetboxDeviceCollection"]
 
 
 class NetboxDeviceCollection(DeviceCollection):
-    name = "netbox"
+    source = "netbox"
 
     async def fetch(self):
         """ exclude devices without a platform or primary-ip address """
@@ -38,13 +38,13 @@ class NetboxDeviceCollection(DeviceCollection):
 
     def fingerprint(self, rec: Dict) -> Dict:
         dt = rec["device_type"]
-        return {
-            "id": rec["id"],
-            "sn": rec["serial"],
-            "hostname": rec["name"],
-            "ipaddr": rec["primary_ip"]["address"].split("/")[0],
-            "site": rec["site"]["slug"],
-            "os_name": rec["platform"]["slug"],
-            "vendor": dt["manufacturer"]["slug"],
-            "model": dt["slug"],
-        }
+        return dict(
+            _ref=dict(id=rec["id"]),
+            sn=rec["serial"],
+            hostname=rec["name"],
+            ipaddr=rec["primary_ip"]["address"].split("/")[0],
+            site=rec["site"]["slug"],
+            os_name=rec["platform"]["slug"],
+            vendor=dt["manufacturer"]["slug"],
+            model=dt["slug"],
+        )

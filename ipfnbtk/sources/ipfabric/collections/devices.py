@@ -26,7 +26,7 @@ __all__ = ["IPFabricDeviceCollection"]
 
 
 class IPFabricDeviceCollection(DeviceCollection):
-    name = "ipfabric"
+    source = "ipfabric"
 
     async def fetch(self):
         res = await get_client().fetch_devices()
@@ -34,7 +34,7 @@ class IPFabricDeviceCollection(DeviceCollection):
 
     def fingerprint(self, rec: Dict) -> Dict:
         return dict(
-            id=rec["id"],
+            _ref=dict(id=[rec["id"]]),
             sn=rec["sn"],
             hostname=rec["hostname"],
             ipaddr=rec["loginIp"],

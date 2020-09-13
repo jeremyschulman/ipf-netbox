@@ -21,9 +21,20 @@ __all__ = ["DeviceCollection"]
 
 
 class DeviceCollection(Collection):
+    name = "devices"
 
-    FINGERPRINT_FIELDS = {"id", "sn", "hostname", "ipaddr", "site", "os_name", "model"}
-    KEY_FIELDS = {"sn"}
+    FINGERPRINT_FIELDS = (
+        "_ref",
+        "sn",
+        "hostname",
+        "ipaddr",
+        "site",
+        "os_name",
+        "vendor",
+        "model",
+    )
+
+    KEY_FIELDS = ("sn",)
 
 
 # -----------------------------------------------------------------------------
