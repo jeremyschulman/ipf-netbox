@@ -66,7 +66,7 @@ other.make_fingerprints(with_filter=otr_filter_func)
 source.make_keys('hostname', with_translate=normalize_hostname)
 other.make_keys('hostname', with_translate=normalize_hostname)
 
-missing, changes = diff.diff(source, other, ignore_fields=['os_name', 'model', 'hostname'])
+missing, changes = diff.diff(source, other, ignore_fields=['os_name', 'hostname'])
 
 
 missing_sn = [
@@ -76,11 +76,11 @@ missing_sn = [
 ]
 
 wrong_sn = [
-    [fp['hostname'], fp['model'], fp['sn'], change['sn']]
+    [fp['hostname'], fp['model'], fp['sn'], change['model'], change['sn']]
     for fp, change in changes
     if 'sn' in change and fp['sn'] != ''
 ]
 
 print(tabulate(
-    headers=['hostname', 'Model', 'SN', 'actual SN'],
+    headers=['hostname', 'Model', 'SN', 'actual Model', 'actual SN'],
     tabular_data=wrong_sn))
