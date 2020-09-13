@@ -1,4 +1,4 @@
-from typing import List, Dict, Set, Hashable, Any, Callable, Tuple
+from typing import List, Dict, Any, Callable, Tuple
 from abc import ABC
 from operator import itemgetter
 
@@ -52,7 +52,6 @@ class Collection(ABC):
         self.keys.clear()
         with_translate = with_translate or (lambda x: x)
 
-        self.keys.update({
-            with_translate(kf_getter(fp)): fp
-            for fp in self.fingerprints
-        })
+        self.keys.update(
+            {with_translate(kf_getter(fp)): fp for fp in self.fingerprints}
+        )

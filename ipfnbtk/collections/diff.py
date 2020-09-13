@@ -1,4 +1,4 @@
-from . collection import Collection
+from .collection import Collection
 
 import jsonpatch
 
@@ -32,17 +32,14 @@ def diff(source: Collection, other: Collection, ignore_fields=None):
     missing_keys = other_keys - source_keys
     shared_keys = source_keys & other_keys
 
-    missing_key_items = [
-        (key, other.keys[key])
-        for key in missing_keys
-    ]
+    missing_key_items = [(key, other.keys[key]) for key in missing_keys]
 
     changes = list()
 
     if ignore_fields:
-        ignore_fields = ['/_id'] + ['/' + field for field in ignore_fields]
+        ignore_fields = ["/_id"] + ["/" + field for field in ignore_fields]
     else:
-        ignore_fields = ['/_id']
+        ignore_fields = ["/_id"]
 
     for key in shared_keys:
         source_fp = source.keys[key]
@@ -50,11 +47,13 @@ def diff(source: Collection, other: Collection, ignore_fields=None):
 
         patch = jsonpatch.make_patch(source_fp, other_fp).patch
 
-        if len(item_changes := {
-            item['path'][1:]: item['value']
-            for item in patch
-            if item['op'] == 'replace' and item['path'] not in ignore_fields
-        }):
+        if len(
+            item_changes := {
+                item["path"][1:]: item["value"]
+                for item in patch
+                if item["op"] == "replace" and item["path"] not in ignore_fields
+            }
+        ):
             changes.append((source_fp, item_changes))
 
     return missing_key_items, changes

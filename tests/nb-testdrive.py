@@ -12,7 +12,7 @@ nb = get_client()
 nb_dc = NetboxDeviceCollection()
 
 
-filter_func = create_filter(['status=(active|offline|staging)'], field_names=['status'])
+filter_func = create_filter(["status=(active|offline|staging)"], field_names=["status"])
 
 
 loop.run_until_complete(nb_dc.fetch())

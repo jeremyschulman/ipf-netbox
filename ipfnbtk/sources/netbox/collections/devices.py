@@ -2,7 +2,7 @@
 # System Imports
 # -----------------------------------------------------------------------------
 
-from typing import Dict, Tuple, Any
+from typing import Dict
 
 # -----------------------------------------------------------------------------
 # Private Imports
@@ -37,10 +37,10 @@ class NetboxDeviceCollection(DeviceCollection):
         self.inventory = [rec for rec in records if rec["primary_ip"]]
 
     def fingerprint(self, rec: Dict) -> Dict:
-        dt = rec['device_type']
+        dt = rec["device_type"]
 
         return dict(
-            _id=rec['id'],
+            _id=rec["id"],
             sn=rec["serial"],
             hostname=rec["name"],
             ipaddr=rec["primary_ip"]["address"].split("/")[0],
@@ -48,5 +48,5 @@ class NetboxDeviceCollection(DeviceCollection):
             os_name=rec["platform"]["slug"],
             vendor=dt["manufacturer"]["slug"],
             model=dt["slug"],
-            status=rec['status']['value']
+            status=rec["status"]["value"],
         )
