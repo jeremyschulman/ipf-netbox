@@ -1,4 +1,4 @@
-from typing import List, Dict, Set, Hashable, Any, Callable
+from typing import List, Dict, Set, Hashable, Any, Callable, Tuple
 from abc import ABC
 from operator import itemgetter
 
@@ -18,7 +18,7 @@ class Collection(ABC):
     def __init__(self):
         self.inventory: List[Any] = list()
         self.fingerprints: [List[Dict]] = list()
-        self.keys: [Set[Hashable]] = set()
+        self.keys: Dict[Tuple, Dict] = dict()
 
     async def fetch(self):
         pass
@@ -43,16 +43,16 @@ class Collection(ABC):
     def fingerprint(self, rec: Dict) -> Dict:
         pass
 
-    def make_keys(self, fields=None):
+    def make_keys(self, *fields, with_translate=None):
         if not len(self.fingerprints):
             get_logger().warning("No fingerprints")
             return
 
-        fieldsgetter = itemgetter(*(fields or self.KEY_FIELDS))
-        self.keys = set(map(fieldsgetter, self.fingerprints))
+        kf_getter = itemgetter(*(fields or self.KEY_FIELDS))
+        self.keys.clear()
+        with_translate = with_translate or (lambda x: x)
 
-    def audit(self, other):
-        pass
-
-    def reconcile(self):
-        pass
+        self.keys.update({
+            with_translate(kf_getter(fp)): fp
+            for fp in self.fingerprints
+        })

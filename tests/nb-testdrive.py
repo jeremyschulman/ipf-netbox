@@ -1,22 +1,18 @@
 import asyncio
+
 from ipfnbtk.collections.devices import DeviceCollection  # noqa
 from ipfnbtk.sources.netbox import NetboxDeviceCollection
+from ipfnbtk.sources.netbox.client import get_client
+from ipfnbtk.filtering import create_filter
 
 loop = asyncio.get_event_loop()
 asyncio.set_event_loop(loop)
 
+nb = get_client()
 nb_dc = NetboxDeviceCollection()
 
 
-async def run(page_sz):
-    filters = {"exclude": "config_context", "platform__n": "null"}
+filter_func = create_filter(['status=(active|offline|staging)'], field_names=['status'])
 
-    return await nb_dc.client.paginate(
-        "/dcim/devices", page_sz=page_sz, filters=filters
-    )
-
-
-# nb_dc.client.timeout = 60
-# devices = loop.run_until_complete(run(200))
 
 loop.run_until_complete(nb_dc.fetch())

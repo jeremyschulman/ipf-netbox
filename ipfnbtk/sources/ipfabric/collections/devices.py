@@ -34,7 +34,7 @@ class IPFabricDeviceCollection(DeviceCollection):
 
     def fingerprint(self, rec: Dict) -> Dict:
         return dict(
-            _ref=dict(id=[rec["id"]]),
+            _id=rec["id"],
             sn=rec["sn"],
             hostname=rec["hostname"],
             ipaddr=rec["loginIp"],

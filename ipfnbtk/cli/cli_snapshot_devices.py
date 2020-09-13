@@ -33,7 +33,7 @@ from aioipfabric import IPFabricClient
 # Private Imports
 # -----------------------------------------------------------------------------
 
-from ipfnbtk.cli.filtering import create_filter
+from ipfnbtk.filtering import create_filter
 from ipfnbtk.sources.netbox.client import NetboxClient
 
 from ipfnbtk import cache
