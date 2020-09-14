@@ -29,7 +29,7 @@ from invoke import task
 
 @task
 def precheck(ctx):
-    ctx.run("black .")
+    ctx.run("black . --exclude tests")
     ctx.run("flake8 .")
     ctx.run("pre-commit run -a")
     ctx.run("interrogate -c pyproject.toml", pty=True)

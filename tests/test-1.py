@@ -32,7 +32,7 @@ load_config_file(Path(os.environ["IPFNB_CONFIG"]))
 
 
 class CiscoSntcCsvDeviceCollection(DeviceCollection):
-    source = 'cisco-sntc-csv'
+    source = "cisco-sntc-csv"
 
     def __init__(self, filename):
         super().__init__()
@@ -43,12 +43,12 @@ class CiscoSntcCsvDeviceCollection(DeviceCollection):
 
     def fingerprint(self, rec: Dict) -> Dict:
         return dict(
-            hostname=rec['Hostname'],
-            sn=rec['Serial Number'],
-            model=rec['Product ID'],
-            os_name=rec['SW Type'],
-            vendor='cisco',
-            ipaddr=rec['IP Address']
+            hostname=rec["Hostname"],
+            sn=rec["Serial Number"],
+            model=rec["Product ID"],
+            os_name=rec["SW Type"],
+            vendor="cisco",
+            ipaddr=rec["IP Address"],
         )
 
 
@@ -67,12 +67,13 @@ other = IPFabricDeviceCollection()
 async def fetch():
     print(f"FETCH: {source.source} and {other.source} inventories")
 
-    await asyncio.gather(source.fetch(),
-                         other.fetch())
+    await asyncio.gather(source.fetch(), other.fetch())
 
     print("SAVE: Both Netbox and IP Fabric inventories")
 
-    async with aiofiles.open(_CACHEDIR.joinpath(f"{source.source}.devices.json"), "w+") as ofile:
+    async with aiofiles.open(
+        _CACHEDIR.joinpath(f"{source.source}.devices.json"), "w+"
+    ) as ofile:
         await ofile.write(json.dumps(source.inventory, indent=3))
 
     async with aiofiles.open(
@@ -82,12 +83,15 @@ async def fetch():
 
 
 def reload():
-    source.inventory = json.load(_CACHEDIR.joinpath(f"{source.source}.devices.json").open())
-    other.inventory = json.load(_CACHEDIR.joinpath(f"{other.source}.devices.json").open())
+    source.inventory = json.load(
+        _CACHEDIR.joinpath(f"{source.source}.devices.json").open()
+    )
+    other.inventory = json.load(
+        _CACHEDIR.joinpath(f"{other.source}.devices.json").open()
+    )
 
 
 #    other.inventory = json.load(_CACHEDIR.joinpath("ipfabric.devices.json").open())
-
 
 
 def run():
@@ -98,7 +102,9 @@ def run():
         ["status=(active|offline|staged|decommissioning)"], field_names=["status"]
     )
 
-    otr_filter_func = create_filter(["os_name=lap"], field_names=["os_name"], include=False)
+    otr_filter_func = create_filter(
+        ["os_name=lap"], field_names=["os_name"], include=False
+    )
     # otr_filter_func = None
 
     source.make_fingerprints(with_filter=src_filter_func)
@@ -114,10 +120,10 @@ def run():
     other.make_keys("sn")
 
     def sn_cmp(val):
-        return val if not val.endswith('_1') else val.partition("_1")[0]
+        return val if not val.endswith("_1") else val.partition("_1")[0]
 
     comparitors = {
-        'sn': sn_cmp,
+        "sn": sn_cmp,
         # "model": str.upper,
         # "os_name": lambda f: f.replace("-", ""),
     }
@@ -130,7 +136,7 @@ def run():
 
     wrong_sn = [
         [
-            fp['_id'],
+            fp["_id"],
             fp["hostname"],
             fp["os_name"],
             fp["model"],
@@ -142,34 +148,33 @@ def run():
         if "sn" in change and fp["sn"] != ""
     ]
 
-    wrong_model = [
-        [fp["hostname"], fp["os_name"], fp["model"], change["model"]]
-        for fp, change in changes
-        if "model" in change
-    ]
+    # wrong_model = [
+    #     [fp["hostname"], fp["os_name"], fp["model"], change["model"]]
+    #     for fp, change in changes
+    #     if "model" in change
+    # ]
 
     return missing_sn, wrong_sn
 
 
 def print_wrong_sn(changes):
     data = [
-        [fp['hostname'], fp['os_name'], fp['model'], fp['sn'], fp_c['sn']]
+        [fp["hostname"], fp["os_name"], fp["model"], fp["sn"], fp_c["sn"]]
         for fp, fp_c in changes
-        if 'sn' in fp_c
+        if "sn" in fp_c
     ]
     print(
         tabulate(
-            headers=["hostname", "OS", "Model", "SN", "diff SN"],
-            tabular_data=data,
+            headers=["hostname", "OS", "Model", "SN", "diff SN"], tabular_data=data,
         )
     )
 
 
 def print_wrong_model(changes):
     data = [
-        [fp['hostname'], fp['os_name'], fp['model'], fp_c['model']]
+        [fp["hostname"], fp["os_name"], fp["model"], fp_c["model"]]
         for fp, fp_c in changes
-        if 'model' in fp_c
+        if "model" in fp_c
     ]
     print(
         tabulate(
@@ -179,13 +184,12 @@ def print_wrong_model(changes):
 
 
 def task_update_sn(dev_id, sn):
-    return nb.patch(f'/dcim/devices/{dev_id}/', json={'serial': sn})
+    return nb.patch(f"/dcim/devices/{dev_id}/", json={"serial": sn})
 
 
 async def fix_all(missing_sn):
     for fp, changes in missing_sn:
-        dev_id = fp['_id']
+        dev_id = fp["_id"]
         print(f"Updating {fp['hostname']} ({dev_id}) to {changes['sn']}")
-        res = await task_update_sn(dev_id=dev_id, sn=changes['sn'])
+        res = await task_update_sn(dev_id=dev_id, sn=changes["sn"])
         print(res)
-
