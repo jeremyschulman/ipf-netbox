@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Callable, Tuple
+from typing import List, Dict, Any, Callable, Tuple, Optional
 from abc import ABC
 from operator import itemgetter
 
@@ -23,7 +23,7 @@ class Collection(ABC):
     async def fetch(self):
         pass
 
-    def make_fingerprints(self, with_filter: Callable[[Dict], bool]):
+    def make_fingerprints(self, with_filter: Optional[Callable[[Dict], bool]] = None):
         if not len(self.inventory):
             get_logger().warning("No inventory")
             return
