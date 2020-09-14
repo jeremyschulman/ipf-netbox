@@ -4,44 +4,44 @@
 
 from typing import Dict, List
 from operator import itemgetter
-from functools import partial
-import re
 
 # -----------------------------------------------------------------------------
 # Private Imports
 # -----------------------------------------------------------------------------
 
 from ipfnbtk import cache
+from ipfnbtk.normalize_hostname import normalize_hostname
+from .collection import Collection
 
 # -----------------------------------------------------------------------------
 # Exports
 # -----------------------------------------------------------------------------
 
-__all__ = ["audit"]
+__all__ = ["DeviceCollection"]
+
+
+class DeviceCollection(Collection):
+    name = "devices"
+
+    FINGERPRINT_FIELDS = (
+        "_ref",
+        "sn",
+        "hostname",
+        "ipaddr",
+        "site",
+        "os_name",
+        "vendor",
+        "model",
+    )
+
+    KEY_FIELDS = ("sn",)
+
 
 # -----------------------------------------------------------------------------
 #
 #                              CODE BEGINS
 #
 # -----------------------------------------------------------------------------
-
-strip_domains = (
-    ".mlb.org",
-    ".mlb.com",
-    ".mlbam.com",
-    ".mlbam.mlb.org",
-    ".mlbinfra.net",
-)
-
-any_domain = "|".join(map(re.escape, strip_domains))
-do_strip = partial(re.compile(any_domain).sub, repl="")
-
-
-def make_keyset(devices, key_fields):
-    def normalize_key(host):
-        return do_strip(string=host.lower())
-
-    return {normalize_key(key_fields(rec)): rec for rec in devices}
 
 
 def actions_for_missing_nb_keys(missing) -> List:
@@ -61,8 +61,8 @@ def actions_for_missing_nb_keys(missing) -> List:
         actions.append(
             {
                 "action": "add",
-                "target": "netbox",
-                "area": "devices",
+                "source": "netbox",
+                "item": "device",
                 "key": key,
                 "data": ipf_rec,
             }
@@ -92,8 +92,8 @@ def actions_for_missing_ipf_keys(missing: Dict) -> List:
         actions.append(
             {
                 "action": "add",
-                "target": "ipfabric",
-                "area": "devices",
+                "source": "ipfabric",
+                "item": "device",
                 "key": key,
                 "data": {
                     "site": nb_rec["site"],
@@ -105,10 +105,14 @@ def actions_for_missing_ipf_keys(missing: Dict) -> List:
     return actions
 
 
+def make_keyset(devices, host_field):
+    return {normalize_hostname(host_field(rec)): rec for rec in devices}
+
+
 def audit() -> Dict:
 
-    ipf_devices = cache.cache_load("ipfabric", "inventory")
-    nb_devices = cache.cache_load("netbox", "inventory")
+    ipf_devices = cache.cache_load("ipfabric", cache.CACHE_DEVICE_INVENTORY)
+    nb_devices = cache.cache_load("netbox", cache.CACHE_DEVICE_INVENTORY)
 
     ipf_keyset = make_keyset(ipf_devices, itemgetter("hostname"))
     nb_keyset = make_keyset(nb_devices, itemgetter("name"))
@@ -123,12 +127,17 @@ def audit() -> Dict:
         dict(zip(nb_missing_keys, map(ipf_keyset.get, nb_missing_keys)))
     )
 
-    cache.cache_dump(nb_actions, "netbox", "device.actions")
+    cache.cache_dump(nb_actions, "netbox", cache.CACHE_DEVICE_ACTIONS)
+    cache.cache_dump(nb_missing_keys, "netbox", cache.CACHE_DEVICE_MISSING)
 
     ipf_actions = actions_for_missing_ipf_keys(
         dict(zip(ipf_missing_keys, map(nb_keyset.get, ipf_missing_keys)))
     )
 
-    cache.cache_dump(ipf_actions, "ipfabric", "device.actions")
+    cache.cache_dump(ipf_actions, "ipfabric", cache.CACHE_DEVICE_ACTIONS)
+    cache.cache_dump(ipf_missing_keys, "ipfabric", cache.CACHE_DEVICE_MISSING)
 
-    return {"netbox": nb_actions, "ipfabric": ipf_actions}
+    return {
+        "netbox": {"actions": nb_actions, "missing": nb_missing_keys},
+        "ipfabric": {"actions": ipf_actions, "missing": ipf_missing_keys},
+    }
