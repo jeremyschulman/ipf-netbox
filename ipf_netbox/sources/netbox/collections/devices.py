@@ -8,7 +8,7 @@ from typing import Dict
 # Private Imports
 # -----------------------------------------------------------------------------
 
-from ipfnbtk.collections.devices import DeviceCollection
+from ipf_netbox.collections.devices import DeviceCollection
 from ..client import get_client
 
 # -----------------------------------------------------------------------------

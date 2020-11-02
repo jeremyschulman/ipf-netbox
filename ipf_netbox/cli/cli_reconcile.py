@@ -1,4 +1,4 @@
-from ipfnbtk.cli.__main__ import cli
+from ipf_netbox.cli.__main__ import cli
 
 
 @cli.group(name="reconcile")

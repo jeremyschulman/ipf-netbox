@@ -9,15 +9,15 @@ from typing import Dict
 import aiofiles
 from tabulate import tabulate
 
-from ipfnbtk.config import load_config_file
-from ipfnbtk.normalize_hostname import normalize_hostname
-from ipfnbtk.collections.devices import DeviceCollection  # noqa
-from ipfnbtk.sources.netbox import NetboxDeviceCollection
-from ipfnbtk.sources.ipfabric import IPFabricDeviceCollection
-from ipfnbtk.sources.netbox.client import get_client as get_nb
-from ipfnbtk.sources.ipfabric.client import get_client as get_ipf
-from ipfnbtk.filtering import create_filter
-from ipfnbtk.collections import diff
+from ipf_netbox.config import load_config_file
+from ipf_netbox.normalize_hostname import normalize_hostname
+from ipf_netbox.collections.devices import DeviceCollection  # noqa
+from ipf_netbox.sources.netbox import NetboxDeviceCollection
+from ipf_netbox.sources.ipfabric import IPFabricDeviceCollection
+from ipf_netbox.sources.netbox.client import get_client as get_nb
+from ipf_netbox.sources.ipfabric.client import get_client as get_ipf
+from ipf_netbox.filtering import create_filter
+from ipf_netbox.collections import diff
 
 
 try:

@@ -16,7 +16,7 @@ from tabulate import tabulate
 # -----------------------------------------------------------------------------
 
 from .cli_audit import cli_audit
-from ipfnbtk.collections.serial_numbers import audit
+from ipf_netbox.collections.serial_numbers import audit
 
 # -----------------------------------------------------------------------------
 #

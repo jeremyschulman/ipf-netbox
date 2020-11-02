@@ -9,7 +9,7 @@ import re
 # Private Imports
 # -----------------------------------------------------------------------------
 
-from ipfnbtk.config import g_config, ConfigModel
+from ipf_netbox.config import g_config, ConfigModel
 
 # -----------------------------------------------------------------------------
 # Exports

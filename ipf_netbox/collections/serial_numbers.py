@@ -8,8 +8,8 @@ from typing import List, Dict
 # Private Imports
 # -----------------------------------------------------------------------------
 
-from ipfnbtk import cache
-from ipfnbtk.normalize_hostname import normalize_hostname
+from ipf_netbox import cache
+from ipf_netbox.normalize_hostname import normalize_hostname
 
 # -----------------------------------------------------------------------------
 # Exports

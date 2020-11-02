@@ -3,7 +3,7 @@ from abc import ABC
 from operator import itemgetter
 
 
-from ipfnbtk.log import get_logger
+from ipf_netbox.log import get_logger
 
 
 __all__ = ["Collection"]

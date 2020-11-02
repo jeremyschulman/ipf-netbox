@@ -3,8 +3,8 @@ import os
 
 import click
 
-from ipfnbtk.config import load_config_file
-from ipfnbtk import consts
+from ipf_netbox.config import load_config_file
+from ipf_netbox import consts
 
 
 @click.group()

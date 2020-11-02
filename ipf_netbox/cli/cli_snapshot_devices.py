@@ -33,12 +33,12 @@ from aioipfabric import IPFabricClient
 # Private Imports
 # -----------------------------------------------------------------------------
 
-from ipfnbtk.filtering import create_filter
-from ipfnbtk.sources.netbox.client import NetboxClient
+from ipf_netbox.filtering import create_filter
+from ipf_netbox.sources.netbox.client import NetboxClient
 
-from ipfnbtk import cache
-from ipfnbtk.config_models import ConfigModel
-from ipfnbtk.cli.cli_snapshot import cli_snapshot
+from ipf_netbox import cache
+from ipf_netbox.config_models import ConfigModel
+from ipf_netbox.cli.cli_snapshot import cli_snapshot
 
 # -----------------------------------------------------------------------------
 #
