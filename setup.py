@@ -29,7 +29,7 @@
 
 from setuptools import setup, find_packages
 
-package_name = "ipfnbtk"
+package_name = "ipf-netbox"
 package_version = open("VERSION").read().strip()
 
 
@@ -57,7 +57,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=requirements(),
-    entry_points={"console_scripts": ["ipfnb = ipfnbtk.cli.__main__:cli"]},
+    entry_points={"console_scripts": ["ipf-netbox = ipf_netbox.cli.__main__:cli"]},
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
