@@ -1,1 +1,1 @@
-from .collections.devices import NetboxDeviceCollection  # noqa
+import ipf_netbox.sources.netbox.sites

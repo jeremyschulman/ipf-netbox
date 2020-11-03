@@ -3,10 +3,13 @@ import asyncio
 from os import environ
 from operator import itemgetter
 from itertools import chain
-from functools import lru_cache
 
 
 from httpx import AsyncClient
+
+from ipf_netbox.sources import Source
+
+NAME = "netbox"
 
 
 class NetboxClient(AsyncClient):
@@ -81,8 +84,6 @@ class NetboxClient(AsyncClient):
         )
 
 
-@lru_cache()
-def get_client():
-    nb = NetboxClient()
-    nb.timeout = 30
-    return nb
+class NetboxSource(Source):
+    name = NAME
+    client_class = NetboxClient

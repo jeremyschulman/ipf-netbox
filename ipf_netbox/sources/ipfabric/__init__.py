@@ -1,1 +1,1 @@
-from .collections.devices import IPFabricDeviceCollection  # noqa
+import ipf_netbox.sources.ipfabric.sites
