@@ -63,4 +63,7 @@ def diff(
         if len(item_changes):
             changes[key] = ChangeItem(source_fp, item_changes)
 
+    if not missing_key_items and not changes:
+        return None
+
     return DiffResults(missing=missing_key_items, changes=changes)

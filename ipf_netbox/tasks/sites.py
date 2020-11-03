@@ -1,6 +1,5 @@
 import asyncio
 
-from invoke import task
 from tabulate import tabulate
 from operator import itemgetter
 from httpx import Response
@@ -10,12 +9,8 @@ from ipf_netbox.collection import get_collection
 from ipf_netbox.diff import diff
 from ipf_netbox.netbox.source import NetboxClient
 
-from .root import root
 
-
-@root.add_task
-@task(name="ensure-sites")
-def ensure_sites(ctx):
+def ensure_sites(dry_run):
     """
     Ensure Netbox contains the sites defined in IP Fabric
     """
@@ -35,7 +30,11 @@ def ensure_sites(ctx):
 
     diff_res = diff(source_from=col_ipf, sync_to=col_netbox)
 
-    if ctx.config.run.dry:
+    if diff_res is None:
+        print("No changes required")
+        return
+
+    if dry_run:
         _dry_report(source_col=col_ipf, diff_res=diff_res)
         return
 
@@ -70,10 +69,6 @@ async def _execute_changes(nb: NetboxClient, diff_res):
 
 
 def _dry_report(source_col, diff_res):
-
-    if not len(diff_res.missing):
-        print("No changes required.")
-        return
 
     tab_data = [
         [key, ["Yes", "No"][key in diff_res.missing]] for key in source_col.keys

@@ -5,4 +5,3 @@ tabulate
 pydantic
 pydantic_env
 toml
-invoke

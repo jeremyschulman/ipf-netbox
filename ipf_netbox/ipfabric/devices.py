@@ -8,14 +8,15 @@ from typing import Dict
 # Private Imports
 # -----------------------------------------------------------------------------
 
+from ipf_netbox.collection import Collection
 from ipf_netbox.collections.devices import DeviceCollection
-from ..client import get_client
+from ipf_netbox.ipfabric.source import IPFabricSource
 
 # -----------------------------------------------------------------------------
 # Exports
 # -----------------------------------------------------------------------------
 
-__all__ = ["NetboxDeviceCollection"]
+__all__ = ["IPFabricDeviceCollection"]
 
 
 # -----------------------------------------------------------------------------
@@ -25,28 +26,22 @@ __all__ = ["NetboxDeviceCollection"]
 # -----------------------------------------------------------------------------
 
 
-class NetboxDeviceCollection(DeviceCollection):
-    source = "netbox"
+class IPFabricDeviceCollection(Collection, DeviceCollection):
+    source_class = IPFabricSource
 
     async def fetch(self):
-        """ exclude devices without a platform or primary-ip address """
-        records = await get_client().paginate(
-            url="/dcim/devices",
-            filters={"exclude": "config_context", "platform__n": "null"},
-        )
-        self.inventory = [rec for rec in records if rec["primary_ip"]]
+        async with self.source.client as ipf:
+            res = await ipf.fetch_devices()
+
+        return res
 
     def fingerprint(self, rec: Dict) -> Dict:
-        dt = rec["device_type"]
-
         return dict(
-            _id=rec["id"],
-            sn=rec["serial"],
-            hostname=rec["name"],
-            ipaddr=rec["primary_ip"]["address"].split("/")[0],
-            site=rec["site"]["slug"],
-            os_name=rec["platform"]["slug"],
-            vendor=dt["manufacturer"]["slug"],
-            model=dt["slug"],
-            status=rec["status"]["value"],
+            sn=rec["sn"],
+            hostname=rec["hostname"],
+            ipaddr=rec["loginIp"],
+            site=rec["siteName"],
+            os_name=rec["family"],
+            vendor=rec["vendor"],
+            model=rec["model"],
         )
