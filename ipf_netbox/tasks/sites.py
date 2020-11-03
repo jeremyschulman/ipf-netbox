@@ -31,7 +31,7 @@ def ensure_sites(dry_run):
     diff_res = diff(source_from=col_ipf, sync_to=col_netbox)
 
     if diff_res is None:
-        print("No changes required")
+        print("Done.  No changes required.")
         return
 
     if dry_run:
