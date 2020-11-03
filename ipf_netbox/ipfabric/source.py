@@ -1,7 +1,7 @@
 import os
 from operator import itemgetter
 
-from ipf_netbox.sources import Source
+from ipf_netbox.source import Source
 from aioipfabric.client import IPFabricClient
 
 NAME = "ipfabric"

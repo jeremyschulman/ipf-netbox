@@ -8,8 +8,8 @@ program = Program(namespace=root)
 def run(argv):
     argv = list(argv)
 
-    if '-p' not in argv:
-        argv.insert(0, '-p')
+    if "-p" not in argv:
+        argv.insert(0, "-p")
 
     class _Config(Config):
         def __init__(self, *args, **kwargs):

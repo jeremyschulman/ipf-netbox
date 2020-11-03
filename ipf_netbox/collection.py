@@ -27,9 +27,10 @@ class Collection(ABC, CollectionMixin):
         pass
 
     async def catalog(
-            self, *fields,
-            with_filter: Optional[Callable[[Dict], bool]] = None,
-            with_translate: Optional[Callable] = None
+        self,
+        *fields,
+        with_filter: Optional[Callable[[Dict], bool]] = None,
+        with_translate: Optional[Callable] = None,
     ):
         self.inventory = await self.fetch()
         self.make_fingerprints(with_filter=with_filter)

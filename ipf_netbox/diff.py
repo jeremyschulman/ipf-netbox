@@ -1,14 +1,18 @@
 from typing import Dict, Callable, Optional
 from collections import namedtuple
 
-from .collection import Collection
+from ipf_netbox.collection import Collection
 
 MissingKeyItem = namedtuple("MissingKeyItem", ["key", "other_fp"])
 ChangeItem = namedtuple("ChangedItem", ["source_fp", "changes"])
+DiffResults = namedtuple("DiffResults", ["missing", "changes"])
 
 
-def diff(source_from: Collection, sync_to: Collection,
-         fields_cmp: Optional[Dict[str, Callable]] = None):
+def diff(
+    source_from: Collection,
+    sync_to: Collection,
+    fields_cmp: Optional[Dict[str, Callable]] = None,
+):
     """
     The source and other collections have already been fetched, fingerprinted, and keyed.
     This method is used to create a diff report so that action can be taken to account for
@@ -40,15 +44,14 @@ def diff(source_from: Collection, sync_to: Collection,
     missing_keys = source_from_keys - sync_to_keys
     shared_keys = source_from_keys & sync_to_keys
 
-    missing_key_items = [MissingKeyItem(key, source_from.keys[key]) for key in missing_keys]
+    missing_key_items = [
+        MissingKeyItem(key, source_from.keys[key]) for key in missing_keys
+    ]
 
     changes = list()
 
     if not fields_cmp:
-        fields_cmp = {
-            field: lambda f: f
-            for field in source_from.FINGERPRINT_FIELDS
-        }
+        fields_cmp = {field: lambda f: f for field in source_from.FINGERPRINT_FIELDS}
 
     for key in shared_keys:
         source_fp = source_from.keys[key]
@@ -63,4 +66,4 @@ def diff(source_from: Collection, sync_to: Collection,
         if len(item_changes):
             changes.append(ChangeItem(source_fp, item_changes))
 
-    return missing_key_items, changes
+    return DiffResults(missing=missing_key_items, changes=changes)

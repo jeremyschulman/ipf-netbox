@@ -7,7 +7,7 @@ from itertools import chain
 
 from httpx import AsyncClient
 
-from ipf_netbox.sources import Source
+from ipf_netbox.source import Source
 
 NAME = "netbox"
 

@@ -1,4 +1,4 @@
-from .collection import CollectionMixin
+from ipf_netbox.collection import CollectionMixin
 
 
 class SiteCollection(CollectionMixin):

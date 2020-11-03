@@ -11,7 +11,7 @@ from operator import itemgetter
 
 from ipf_netbox import cache
 from ipf_netbox.normalize_hostname import normalize_hostname
-from .collection import Collection
+from ipf_netbox.collection import Collection
 
 # -----------------------------------------------------------------------------
 # Exports

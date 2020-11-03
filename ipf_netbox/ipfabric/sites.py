@@ -1,8 +1,8 @@
 from typing import Dict
 
-from ipf_netbox.collections.collection import Collection
+from ipf_netbox.collection import Collection
 from ipf_netbox.collections.sites import SiteCollection
-from ipf_netbox.sources.ipfabric.source import IPFabricSource
+from ipf_netbox.ipfabric.source import IPFabricSource
 
 
 class IPFabricSiteCollection(Collection, SiteCollection):

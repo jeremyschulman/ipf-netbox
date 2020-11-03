@@ -1,8 +1,8 @@
 import asyncio
 
 from ipf_netbox.collections.devices import DeviceCollection  # noqa
-from ipf_netbox.sources.netbox import NetboxDeviceCollection
-from ipf_netbox.sources.netbox.client import get_client
+from ipf_netbox.netbox import NetboxDeviceCollection
+from ipf_netbox.netbox import get_client
 from ipf_netbox.filtering import create_filter
 
 loop = asyncio.get_event_loop()

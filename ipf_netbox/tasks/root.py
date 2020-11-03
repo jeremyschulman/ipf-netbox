@@ -1,5 +1,5 @@
 from invoke import Collection
 
-__all__ = ['root']
+__all__ = ["root"]
 
 root = Collection()

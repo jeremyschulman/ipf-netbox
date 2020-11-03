@@ -1,6 +1,6 @@
 import asyncio
-from ipf_netbox.sources.ipfabric import IPFabricDeviceCollection
-from ipf_netbox.sources.ipfabric.client import get_client
+from ipf_netbox.ipfabric import IPFabricDeviceCollection
+from ipf_netbox.ipfabric import get_client
 
 loop = asyncio.get_event_loop()
 asyncio.set_event_loop(loop)

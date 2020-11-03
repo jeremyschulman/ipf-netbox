@@ -1,13 +1,14 @@
 import asyncio
-from invoke import task
-from ipf_netbox.sources import get_source
-from ipf_netbox.collections import get_collection, diff
+from invoke import task, Context
+from ipf_netbox.source import get_source
+from ipf_netbox.collection import get_collection
+from ipf_netbox.diff import diff
 from .root import root
 
 
 @root.add_task
 @task(name="ensure-sites")
-def ensure_sites(ctx):
+def ensure_sites(ctx: Context):
     """
     Ensure Netbox contains the sites defined in IP Fabric
     """
@@ -21,6 +22,10 @@ def ensure_sites(ctx):
     loop = asyncio.get_event_loop()
     loop.run_until_complete(asyncio.gather(col_ipf.catalog(), col_netbox.catalog()))
 
-    breakpoint()
     diff_res = diff(source_from=col_ipf, sync_to=col_netbox)
-    breakpoint()
+    if ctx.config.run.dry:
+        print("Show DRY report")
+        return
+
+    print("Do something")
+    print(diff_res)

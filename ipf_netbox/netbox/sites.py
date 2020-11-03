@@ -1,8 +1,8 @@
 from typing import Dict
 
-from ipf_netbox.collections.collection import Collection
+from ipf_netbox.collection import Collection
 from ipf_netbox.collections.sites import SiteCollection
-from ipf_netbox.sources.netbox.source import NetboxSource
+from ipf_netbox.netbox.source import NetboxSource
 
 
 class NetboxSiteCollection(Collection, SiteCollection):
