@@ -75,7 +75,9 @@ def _dry_report(source_col, diff_res):
         print("No changes required.")
         return
 
-    tab_data = [[key, key not in diff_res.missing] for key in source_col.keys]
+    tab_data = [
+        [key, ["Yes", "No"][key in diff_res.missing]] for key in source_col.keys
+    ]
     tab_data.sort(key=itemgetter(0))
 
-    print(tabulate(headers=["Site Name", ""], tabular_data=tab_data))
+    print(tabulate(headers=["Site Name", "Exists"], tabular_data=tab_data))
