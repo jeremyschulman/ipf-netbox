@@ -6,9 +6,11 @@ import click
 from ipf_netbox.config import load_config_file
 from ipf_netbox import consts
 
+VERSION = metadata.version("ipf-netbox")
+
 
 @click.group()
-@click.version_option(metadata.version("ipfnbtk"))
+@click.version_option(VERSION)
 @click.option(
     "--config",
     "-C",
@@ -18,5 +20,5 @@ from ipf_netbox import consts
     callback=lambda ctx, param, value: load_config_file(filepath=value),
 )
 def cli(**kwargs):
-    """ IP Fabric - Netbox Toolkit CLI"""
+    """ IP Fabric - Netbox Utility"""
     pass
