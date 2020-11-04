@@ -23,22 +23,25 @@ class Collection(ABC, CollectionMixin):
         self.keys: Dict[Tuple, Dict] = dict()
         self.source = source
 
-    async def fetch(self):
+    async def fetch(self, **fetch_args):
         pass
 
     async def catalog(
         self,
         *fields,
+        with_fetchargs: Optional[Dict] = None,
         with_filter: Optional[Callable[[Dict], bool]] = None,
         with_translate: Optional[Callable] = None,
     ):
-        self.inventory = await self.fetch()
+        self.inventory = await self.fetch(**(with_fetchargs if with_fetchargs else {}))
         self.make_fingerprints(with_filter=with_filter)
         self.make_keys(*fields, with_translate=with_translate)
 
     def make_fingerprints(self, with_filter: Optional[Callable[[Dict], bool]] = None):
         if not len(self.inventory):
-            get_logger().warning("No inventory")
+            get_logger().info(
+                f"Collection {self.name}:{self.source_class.__name__}: No inventory"
+            )
             return
 
         with_filter = with_filter if with_filter else lambda x: True
@@ -58,7 +61,9 @@ class Collection(ABC, CollectionMixin):
 
     def make_keys(self, *fields, with_translate=None):
         if not len(self.fingerprints):
-            get_logger().warning("No fingerprints")
+            get_logger().info(
+                f"Collection {self.name}:{self.source_class.__name__}: No fingerprints"
+            )
             return
 
         kf_getter = itemgetter(*(fields or self.KEY_FIELDS))

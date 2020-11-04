@@ -29,12 +29,13 @@ __all__ = ["NetboxDeviceCollection"]
 class NetboxDeviceCollection(Collection, DeviceCollection):
     source_class = NetboxSource
 
-    async def fetch(self):
+    async def fetch(self, **kwargs):
         """ exclude devices without a platform or primary-ip address """
-        records = await self.source.paginate(
-            url="/dcim/devices/",
-            filters={"exclude": "config_context", "platform__n": "null"},
-        )
+        async with self.source.client as api:
+            records = await api.paginate(
+                url="/dcim/devices/",
+                filters={"exclude": "config_context", "platform__n": "null"},
+            )
 
         return [rec for rec in records if rec["primary_ip"]]
 

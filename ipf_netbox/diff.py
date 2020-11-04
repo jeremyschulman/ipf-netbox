@@ -43,6 +43,7 @@ def diff(
     missing_keys = source_from_keys - sync_to_keys
     shared_keys = source_from_keys & sync_to_keys
 
+    # missing key dict; key=inventory-key, value=key-fingerprint
     missing_key_items = {key: source_from.keys[key] for key in missing_keys}
 
     changes = dict()

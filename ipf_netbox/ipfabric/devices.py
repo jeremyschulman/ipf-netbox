@@ -4,6 +4,8 @@
 
 from typing import Dict
 
+from aioipfabric.filters import parse_filter
+
 # -----------------------------------------------------------------------------
 # Private Imports
 # -----------------------------------------------------------------------------
@@ -29,9 +31,13 @@ __all__ = ["IPFabricDeviceCollection"]
 class IPFabricDeviceCollection(Collection, DeviceCollection):
     source_class = IPFabricSource
 
-    async def fetch(self):
+    async def fetch(self, **fetch_args):
+        filters = (
+            {} if "filters" not in fetch_args else parse_filter(fetch_args["filters"])
+        )
+
         async with self.source.client as ipf:
-            res = await ipf.fetch_devices()
+            res = await ipf.fetch_devices(filters=filters)
 
         return res
 
