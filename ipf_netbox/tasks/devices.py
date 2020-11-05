@@ -9,7 +9,7 @@ from ipf_netbox.diff import diff, DiffResults
 from ipf_netbox.config import get_config
 
 
-def ensure_devices(dry_run, filter_):
+async def ensure_devices(dry_run, filter_):
     """
     Ensure Netbox contains devices found IP Fabric in given Site
     """
@@ -19,8 +19,7 @@ def ensure_devices(dry_run, filter_):
     ipf = get_source("ipfabric")
     ipf_col = get_collection(source=ipf, name="devices")
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(ipf_col.catalog(with_fetchargs=dict(filters=filter_)))
+    await ipf_col.catalog(with_fetchargs=dict(filters=filter_))
 
     print("OK", flush=True)
 
@@ -31,7 +30,7 @@ def ensure_devices(dry_run, filter_):
     print("Fetching inventory from Netbox ... ", flush=True, end="")
     netbox = get_source("netbox")
     netbox_col = get_collection(source=netbox, name="devices")
-    loop.run_until_complete(netbox_col.catalog())
+    await netbox_col.catalog()
     print("OK", flush=True)
 
     diff_res = diff(
@@ -59,7 +58,7 @@ def ensure_devices(dry_run, filter_):
     if diff_res.changes:
         updates.append(_execute_changes(ipf_col, netbox_col, diff_res.changes))
 
-    loop.run_until_complete(asyncio.gather(*updates))
+    await asyncio.gather(*updates)
 
 
 def _report_proposed_changes(diff_res: DiffResults):

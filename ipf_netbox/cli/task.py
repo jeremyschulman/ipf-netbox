@@ -1,4 +1,5 @@
 import click
+import asyncio
 
 from ipf_netbox.cli.__main__ import cli
 from ipf_netbox.tasks.sites import ensure_sites
@@ -29,7 +30,7 @@ def cli_ensure_sites(ctx: click.Context):
     """ Ensure Netbox has the same Sites as defined in IP Fabric"""
 
     params = ctx.parent.params
-    ensure_sites(**params)
+    asyncio.run(ensure_sites(**params))
 
 
 @cli_tasks.command(
@@ -53,4 +54,4 @@ Ensure Netbox has the same Sites as defined in IP Fabric.
 def cli_ensure_devices(ctx: click.Context, filter_: str):
     group_params = ctx.parent.params
 
-    ensure_devices(**group_params, filter_=filter_)
+    asyncio.run(ensure_devices(**group_params, filter_=filter_))
