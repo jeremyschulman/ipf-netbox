@@ -3,6 +3,10 @@
 import asyncio
 from glob import glob
 from functools import wraps
+import re
+import unicodedata
+
+import httpx
 import click
 import yaml  # noqa: install pyyaml in your virtualenv
 
@@ -22,10 +26,10 @@ def creator(label):
                 if_name = _task.get_name()
 
                 if _res.is_error and IGNORE not in _res.text:
-                    print(f"FAIL: {label} {if_name}: {_res.text}")
+                    print(f"FAIL: {dt_def['model']} {label} {if_name}: {_res.text}")
                     return
 
-                print(f"OK: {label} {if_name}")
+                print(f"OK: {dt_def['model']} {label} {if_name}")
 
             for comp_def in dt_def[component]:
                 comp_def["device_type"] = dt_obj["id"]
@@ -33,7 +37,7 @@ def creator(label):
                 task.add_done_callback(_report)
                 tasks.append(task)
 
-            await asyncio.gather(*tasks, return_exceptions=True)
+            await asyncio.gather(*tasks)
 
         return wrapper
 
@@ -153,8 +157,32 @@ async def create_power_outlets(nb, dt_obj, dt_def, component):
     await _create(nb, dt_obj, dt_def, component)
 
 
-async def ensure_manufacturer(name):
-    async with NetboxClient() as nb:
+def slugify(value, allow_unicode=False):
+    """
+    NOTE: lifed from django.utils.text.
+    Convert to ASCII if 'allow_unicode' is False. Convert spaces to hyphens.
+    Remove characters that aren't alphanumerics, underscores, or hyphens.
+    Convert to lowercase. Also strip leading and trailing whitespace.
+    """
+    value = str(value)
+    if allow_unicode:
+        value = unicodedata.normalize("NFKC", value)
+    else:
+        value = (
+            unicodedata.normalize("NFKD", value)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+        )
+    value = re.sub(r"[^\w\s-]", "", value.lower()).strip()
+    return re.sub(r"[-\s]+", "-", value)
+
+
+_api_manufacture_lock = asyncio.Lock()
+
+
+async def ensure_manufacturer(nb, name):
+
+    async with _api_manufacture_lock:
         res = await nb.get("/dcim/manufacturers", params={"name": name})
         res.raise_for_status()
         body = res.json()
@@ -162,13 +190,30 @@ async def ensure_manufacturer(name):
             return body["results"][0]
 
         res = await nb.post(
-            "/dcim/manufacturers/", json={"name": name, "slug": name.lower()}
+            "/dcim/manufacturers/", json={"name": name, "slug": slugify(name)}
         )
         res.raise_for_status()
+        print(f"OK: manufacturer: {name}")
         return res.json()
 
 
-COMPONTENTS = {
+async def ensure_device_type(nb, dt_def):
+    model = dt_def["model"]
+
+    res = await nb.paginate(url="/dcim/device-types/", filters={"model": model})
+    if res:
+        print(f"OK: device-type: {model}")
+        return res[0]
+
+    mf_rec = await ensure_manufacturer(nb, dt_def["manufacturer"])
+    dt_def["manufacturer"] = mf_rec["id"]
+    res = await nb.post("/dcim/device-types/", json=dt_def)
+    res.raise_for_status()
+    print(f"OK: device-type: {model}")
+    return res.json()
+
+
+COMPONTENT_CREATORS = {
     "interfaces": create_interfaces,
     "console-ports": create_console_ports,
     "power-ports": create_power_ports,
@@ -182,29 +227,13 @@ COMPONTENTS = {
 }
 
 
-async def ensure_device_type(nb, dt_def):
-    model = dt_def["model"]
-
-    res = await nb.paginate(url="/dcim/device-types/", filters={"model": model})
-    if res:
-        print(f"OK: device-type: {model}")
-        return res[0]
-
-    mf_rec = await ensure_manufacturer(dt_def["manufacturer"])
-    dt_def["manufacturer"] = mf_rec["id"]
-    res = await nb.post("/dcim/device-types/", json=dt_def)
-    res.raise_for_status()
-    print(f"OK: device-type: {model}")
-    return res.json()
-
-
 async def create_device_type(nb: NetboxClient, dt_def: dict):
 
     dt_obj = await ensure_device_type(nb, dt_def)
 
     tasks = list()
 
-    for component, task_creator in COMPONTENTS.items():
+    for component, task_creator in COMPONTENT_CREATORS.items():
         if component in dt_def:
             tasks.append(task_creator(nb, dt_obj, dt_def, component))
 
@@ -242,4 +271,11 @@ def cli_load_file(files, glob_):
 
 
 if __name__ == "__main__":
-    cli_load_file()
+    try:
+        cli_load_file()
+
+    except httpx.HTTPStatusError as exc:
+        print(f"FAILURE: {exc.response.text}")
+
+    except Exception as exc:
+        print(f"FAILURE: {str(exc)}")

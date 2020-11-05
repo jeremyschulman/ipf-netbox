@@ -16,3 +16,4 @@ class SourceModel(NoExtraBaseModel):
 class ConfigModel(NoExtraBaseModel):
     defaults: DefaultsModel
     sources: Optional[Dict[str, SourceModel]]
+    maps: Optional[Dict]

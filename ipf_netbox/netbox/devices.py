@@ -32,22 +32,29 @@ class NetboxDeviceCollection(Collection, DeviceCollection):
     async def fetch(self, **kwargs):
         """ exclude devices without a platform or primary-ip address """
         async with self.source.client as api:
-            records = await api.paginate(
-                url="/dcim/devices/",
-                filters={"exclude": "config_context", "platform__n": "null"},
+            return await api.paginate(
+                url="/dcim/devices/", filters={"exclude": "config_context"},
             )
-
-        return [rec for rec in records if rec["primary_ip"]]
 
     def fingerprint(self, rec: Dict) -> Dict:
         dt = rec["device_type"]
 
+        try:
+            ipaddr = rec["primary_ip"]["address"].split("/")[0]
+        except (TypeError, KeyError):
+            ipaddr = ""
+
+        try:
+            os_name = rec["platform"]["slug"]
+        except (TypeError, KeyError):
+            os_name = ""
+
         return dict(
             sn=rec["serial"],
             hostname=rec["name"],
-            ipaddr=rec["primary_ip"]["address"].split("/")[0],
+            ipaddr=ipaddr,
             site=rec["site"]["slug"],
-            os_name=rec["platform"]["slug"],
+            os_name=os_name,
             vendor=dt["manufacturer"]["slug"],
             model=dt["slug"],
             status=rec["status"]["value"],

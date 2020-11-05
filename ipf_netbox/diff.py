@@ -3,7 +3,7 @@ from collections import namedtuple
 
 from ipf_netbox.collection import Collection
 
-ChangeItem = namedtuple("ChangedItem", ["source_fp", "changes"])
+Changes = namedtuple("Changes", ["fingerprint", "fields"])
 DiffResults = namedtuple("DiffResults", ["missing", "changes"])
 
 
@@ -49,20 +49,24 @@ def diff(
     changes = dict()
 
     if not fields_cmp:
-        fields_cmp = {field: lambda f: f for field in source_from.FINGERPRINT_FIELDS}
+        fields_cmp = {}
+
+    for field in source_from.FINGERPRINT_FIELDS:
+        if field not in fields_cmp:
+            fields_cmp[field] = lambda f: f
 
     for key in shared_keys:
         source_fp = source_from.keys[key]
-        other_fp = sync_to.keys[key]
+        sync_fp = sync_to.keys[key]
 
         item_changes = dict()
 
         for field, field_fn in fields_cmp.items():
-            if field_fn(source_fp[field]) != field_fn(other_fp[field]):
-                item_changes[field] = other_fp[field]
+            if field_fn(source_fp[field]) != field_fn(sync_fp[field]):
+                item_changes[field] = source_fp[field]
 
         if len(item_changes):
-            changes[key] = ChangeItem(source_fp, item_changes)
+            changes[key] = Changes(sync_fp, item_changes)
 
     if not missing_key_items and not changes:
         return None
