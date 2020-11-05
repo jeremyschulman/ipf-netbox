@@ -1,204 +1,135 @@
 #!/usr/bin/env python
 
 import asyncio
-from functools import lru_cache
-
+from glob import glob
+from functools import wraps
 import click
-import yaml
+import yaml  # noqa: install pyyaml in your virtualenv
 
 from ipf_netbox.netbox.source import NetboxClient
 
-
-async def create_interfaces(nb, dt_obj, dt_def, component):
-    tasks = list()
-    ignore = "The fields device_type, name must make a unique set."
-
-    def _report(_task):
-        _res = _task.result()
-        if_name = _task.get_name()
-
-        if _res.is_error and ignore not in _res.text:
-            print(f"FAIL: interface {if_name}: {_res.text}")
-            return
-
-        print(f"OK: interface {if_name}")
-
-    for interface in dt_def[component]:
-        interface["device_type"] = dt_obj["id"]
-        task = asyncio.create_task(
-            nb.post("/dcim/interface-templates/", json=interface),
-            name=interface["name"],
-        )
-        task.add_done_callback(_report)
-        tasks.append(task)
-
-    await asyncio.gather(*tasks, return_exceptions=True)
+IGNORE = "The fields device_type, name must make a unique set."
 
 
-async def create_console_server_ports(nb, dt_obj, dt_def, component):
-    ignore = "The fields device_type, name must make a unique set."
+def creator(label):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(nb, dt_obj, dt_def, component):
+            tasks = list()
 
-    def _report(_task):
-        _res = _task.result()
-        if_name = _task.get_name()
+            def _report(_task):
+                _res = _task.result()
+                if_name = _task.get_name()
 
-        if _res.is_error and ignore not in _res.text:
-            print(f"FAIL: console-server-port {if_name}: {_res.text}")
-            return
+                if _res.is_error and IGNORE not in _res.text:
+                    print(f"FAIL: {label} {if_name}: {_res.text}")
+                    return
 
-        print(f"OK: console-server-port {if_name}")
+                print(f"OK: {label} {if_name}")
 
-    tasks = list()
+            for comp_def in dt_def[component]:
+                comp_def["device_type"] = dt_obj["id"]
+                task = func(nb, comp_def)
+                task.add_done_callback(_report)
+                tasks.append(task)
 
-    for csport in dt_def[component]:
-        csport["device_type"] = dt_obj["id"]
-        task = asyncio.create_task(
-            nb.post("/dcim/console-server-port-templates/", json=csport),
-            name=csport["name"],
-        )
-        task.add_done_callback(_report)
-        tasks.append(task)
+            await asyncio.gather(*tasks, return_exceptions=True)
 
-    await asyncio.gather(*tasks, return_exceptions=True)
+        return wrapper
 
-
-async def create_console_ports(nb, dt_obj, dt_def, component):
-    tasks = list()
-
-    ignore = "The fields device_type, name must make a unique set."
-
-    def _report(_task):
-        _res = _task.result()
-        port_name = _task.get_name()
-
-        if _res.is_error and ignore not in _res.text:
-            print(f"FAIL: console-port {port_name}: {_res.text}")
-            return
-
-        print(f"OK: console-port {port_name}")
-
-    for consoleport in dt_def[component]:
-        consoleport["device_type"] = dt_obj["id"]
-        task = asyncio.create_task(
-            nb.post("/dcim/console-port-templates/", json=consoleport),
-            name=consoleport["name"],
-        )
-        task.add_done_callback(_report)
-        tasks.append(task)
-
-    await asyncio.gather(*tasks, return_exceptions=True)
+    return decorator
 
 
-async def create_power_ports(nb, dt_obj, dt_def, component):
+@creator(label="interface")
+def create_interfaces(nb, comp_def):
+    return asyncio.create_task(
+        nb.post("/dcim/interface-templates/", json=comp_def), name=comp_def["name"]
+    )
 
-    ignore = "The fields device_type, name must make a unique set."
 
-    def _report(_task):
-        _res = _task.result()
-        port_name = _task.get_name()
+@creator(label="console-server-port")
+def create_console_server_ports(nb, comp_def):
+    return asyncio.create_task(
+        nb.post("/dcim/console-server-port-templates/", json=comp_def),
+        name=comp_def["name"],
+    )
 
-        if _res.is_error and ignore not in _res.text:
-            print(f"FAIL: power-port {port_name}: {_res.text}")
-            return
 
-        print(f"OK: power-port {port_name}")
+@creator(label="console-port")
+def create_console_ports(nb, comp_def):
+    return asyncio.create_task(
+        nb.post("/dcim/console-port-templates/", json=comp_def), name=comp_def["name"],
+    )
 
-    tasks = list()
 
-    for powerport in dt_def[component]:
-        powerport["device_type"] = dt_obj["id"]
-        task = asyncio.create_task(
-            nb.post("/dcim/power-port-templates/", json=powerport),
-            name=powerport["name"],
-        )
-        task.add_done_callback(_report)
-        tasks.append(task)
-
-    await asyncio.gather(*tasks, return_exceptions=True)
+@creator(label="power-port")
+def create_power_ports(nb, comp_def):
+    return asyncio.create_task(
+        nb.post("/dcim/power-port-templates/", json=comp_def), name=comp_def["name"],
+    )
 
 
 async def create_passthru_ports(nb, dt_obj, dt_def, component):
-    ignore = "The fields device_type, name must make a unique set."
 
-    # map port name to rear-port ID as this value is required for the front
-    # port ID
-    dt_id = dt_obj["id"]
+    # -------------------------------------------------------------------------
+    # first get the rear-port-IDs to see if any exist. map port name to
+    # rear-port ID as this value is required for the front port ID
+    # -------------------------------------------------------------------------
 
-    # first get the rear-port-IDs to see if any exist.
-    res = await nb.get("/dcim/rear-port-templates/", params={"devicetype_id": dt_id})
-
+    res = await nb.get(
+        "/dcim/rear-port-templates/", params={"devicetype_id": dt_obj["id"]}
+    )
     res.raise_for_status()
     rp_exists = res.json()
+
     rear_port_ids = {rec["name"]: rec["id"] for rec in rp_exists["results"]}
 
-    def _on_rear_port(_task):
+    # -------------------------------------------------------------------------
+    # next create rear-ports
+    # -------------------------------------------------------------------------
+
+    def _record_rp_id(_task):
         _res = _task.result()
-        port_name = _task.get_name()
-
-        if _res.is_error and ignore not in _res.text:
-            print(f"FAIL: rear-port {port_name}: {_res.text}")
-            return
-
-        print(f"OK: rear-port {port_name}")
-        if port_name in rear_port_ids:
+        if _res.is_error:
+            # we can ignore the errors here since any valid errors are already
+            # trapped in the creator decorator.  We need this check here,
+            # however, to discard the create-exists falure response.
             return
 
         body = _res.json()
-        rear_port_ids[port_name] = body["id"]
+        rear_port_ids[body["name"]] = body["id"]
 
-    tasks = list()
-
-    for rearport in dt_def["rear-ports"]:
-        rearport["device_type"] = dt_obj["id"]
-
+    @creator(label="rear-port")
+    def _create_rear_port(_nb, comp_def):
         task = asyncio.create_task(
-            nb.post("/dcim/rear-port-templates/", json=rearport), name=rearport["name"],
+            _nb.post("/dcim/rear-port-templates/", json=comp_def),
+            name=comp_def["name"],
         )
-        task.add_done_callback(_on_rear_port)
-        tasks.append(task)
+        task.add_done_callback(_record_rp_id)
+        return task
 
-    await asyncio.gather(*tasks, return_exceptions=True)
+    await _create_rear_port(nb, dt_obj, dt_def, component)
 
-    def _on_front_port(_task):
-        _res = _task.result()
-        port_name = _task.get_name()
+    # -------------------------------------------------------------------------
+    # next create front-ports
+    # -------------------------------------------------------------------------
 
-        if _res.is_error and ignore not in _res.text:
-            print(f"FAIL: front-port {port_name}: {_res.text}")
-            return
-
-        print(f"OK: front-port {port_name}")
-
-    for frontport in dt_def["front-ports"]:
-        name = frontport["name"]
-        frontport["device_type"] = dt_obj["id"]
-        frontport["rear_port"] = rear_port_ids[name]
-        task = asyncio.create_task(
-            nb.post("/dcim/front-port-templates/", json=frontport), name=name
+    @creator(label="front-panel")
+    def _create_front_panel_ports(_nb, comp_def):
+        name = comp_def["name"]
+        comp_def["rear_port"] = rear_port_ids[name]
+        return asyncio.create_task(
+            _nb.post("/dcim/front-port-templates/", json=comp_def), name=name
         )
-        task.add_done_callback(_on_front_port)
-        tasks.append(task)
 
-    await asyncio.gather(*tasks, return_exceptions=True)
+    await _create_front_panel_ports(nb, dt_obj, dt_def, component)
 
 
-async def create_device_bays(nb, dt_id, devicebays):
-    pass
-
-
-# def createDeviceBays(devicebays, deviceType, nb):
-#     for devicebay in devicebays:
-#         devicebay['device_type'] = deviceType
-#         try:
-#             dbGet = nb.dcim.device_bay_templates.get(devicetype_id=deviceType, name=devicebay["name"])
-#             if dbGet:
-#                 print(f'Device Bay Template Exists: {dbGet.name} - {dbGet.device_type.id} - {dbGet.id}')
-#             else:
-#                 dbSuccess = nb.dcim.device_bay_templates.create(devicebay)
-#                 print(f'Device Bay Created: {dbSuccess.name} - {dbSuccess.device_type.id} - {dbSuccess.id}')
-#                 counter.update({'updated':1})
-#         except pynetbox.RequestError as e:
-#             print(e.error)
+@creator(label="device-bay")
+def create_device_bays(nb, comp_def):
+    return asyncio.create_task(
+        nb.post("/dcim/device-bay-templates/", json=comp_def), name=comp_def["name"],
+    )
 
 
 async def create_power_outlets(nb, dt_obj, dt_def, component):
@@ -210,40 +141,31 @@ async def create_power_outlets(nb, dt_obj, dt_def, component):
 
     power_ports_ids = {rec["name"]: rec["id"] for rec in res.json()["results"]}
 
-    tasks = list()
-
-    ignore = "The fields device_type, name must make a unique set."
-
-    def _report(_task):
-        _res = _task.result()
-        port_name = _task.get_name()
-
-        if _res.is_error and ignore not in _res.text:
-            print(f"FAIL: power-outlet {port_name}: {_res.text}")
-            return
-
-        print(f"OK: power-outlet {port_name}")
-
-    for poweroutlet in dt_def[component]:
-        poweroutlet["power_port"] = power_ports_ids[poweroutlet["power_port"]]
-        poweroutlet["device_type"] = dt_id
-        task = asyncio.create_task(
-            nb.post("/dcim/power-outlet-templates/", json=poweroutlet),
-            name=poweroutlet["name"],
+    @creator(label="power-outlet")
+    def _create(_nb, comp_def):
+        comp_def["power_port"] = power_ports_ids[comp_def["power_port"]]
+        comp_def["device_type"] = dt_id
+        return asyncio.create_task(
+            _nb.post("/dcim/power-outlet-templates/", json=comp_def),
+            name=comp_def["name"],
         )
-        task.add_done_callback(_report)
-        tasks.append(task)
 
-    await asyncio.gather(*tasks, return_exceptions=True)
+    await _create(nb, dt_obj, dt_def, component)
 
 
-@lru_cache()
-async def get_manufacturer(name):
+async def ensure_manufacturer(name):
     async with NetboxClient() as nb:
         res = await nb.get("/dcim/manufacturers", params={"name": name})
         res.raise_for_status()
         body = res.json()
-        return body["results"][0] if body["count"] else None
+        if body["count"]:
+            return body["results"][0]
+
+        res = await nb.post(
+            "/dcim/manufacturers/", json={"name": name, "slug": name.lower()}
+        )
+        res.raise_for_status()
+        return res.json()
 
 
 COMPONTENTS = {
@@ -268,7 +190,7 @@ async def ensure_device_type(nb, dt_def):
         print(f"OK: device-type: {model}")
         return res[0]
 
-    mf_rec = await get_manufacturer(dt_def["manufacturer"])
+    mf_rec = await ensure_manufacturer(dt_def["manufacturer"])
     dt_def["manufacturer"] = mf_rec["id"]
     res = await nb.post("/dcim/device-types/", json=dt_def)
     res.raise_for_status()
@@ -282,9 +204,9 @@ async def create_device_type(nb: NetboxClient, dt_def: dict):
 
     tasks = list()
 
-    for component, creator in COMPONTENTS.items():
+    for component, task_creator in COMPONTENTS.items():
         if component in dt_def:
-            tasks.append(creator(nb, dt_obj, dt_def, component))
+            tasks.append(task_creator(nb, dt_obj, dt_def, component))
 
     await asyncio.gather(*tasks)
 
@@ -298,13 +220,24 @@ async def create_device_type(nb: NetboxClient, dt_def: dict):
 
 @click.command()
 @click.option(
-    "--file", "file_", help="Device-Type YAML file", required=True, type=click.File()
+    "--file", "files", help="Device-Type YAML file", type=click.File(), multiple=True
 )
-def cli_load_file(file_):
-    dt_def = yaml.safe_load(file_)
+@click.option("--glob", "glob_", help="Device-Type YAML file-glob pattern")
+def cli_load_file(files, glob_):
     nb = NetboxClient()
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(create_device_type(nb, dt_def))
+
+    tasks = list()
+
+    for dt_file in files:
+        tasks.append(create_device_type(nb, yaml.safe_load(dt_file)))
+
+    if glob_:
+        for file_path in glob(glob_):
+            tasks.append(create_device_type(nb, yaml.safe_load(open(file_path))))
+
+    loop.run_until_complete(asyncio.gather(*tasks))
+
     asyncio.run(nb.aclose())
 
 
