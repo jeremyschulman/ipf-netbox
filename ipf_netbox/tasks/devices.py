@@ -165,5 +165,5 @@ async def _execute_create(ipf_col, nb_col, missing):
         await asyncio.gather(*tasks)
 
 
-async def _execute_changes(ipf_col, nb_col, missing):
-    pass
+async def _execute_changes(ipf_col, nb_col, changes):
+    print("\nPROCESS DEVICE CHANGES: WORK IN PROGRESS\n\n")
