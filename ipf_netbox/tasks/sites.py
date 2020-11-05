@@ -10,7 +10,7 @@ from ipf_netbox.diff import diff
 from ipf_netbox.netbox.source import NetboxClient
 
 
-def ensure_sites(dry_run):
+async def ensure_sites(dry_run):
     """
     Ensure Netbox contains the sites defined in IP Fabric
     """
@@ -23,8 +23,7 @@ def ensure_sites(dry_run):
     col_ipf = get_collection(source=source_ipf, name="sites")
     col_netbox = get_collection(source=source_netbox, name="sites")
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(asyncio.gather(col_ipf.catalog(), col_netbox.catalog()))
+    await asyncio.gather(col_ipf.catalog(), col_netbox.catalog())
 
     print("OK")
 
@@ -34,14 +33,13 @@ def ensure_sites(dry_run):
         print("Done.  No changes required.")
         return
 
+    _dry_report(source_col=col_ipf, diff_res=diff_res)
+
     if dry_run:
-        _dry_report(source_col=col_ipf, diff_res=diff_res)
         return
 
-    loop.run_until_complete(
-        _execute_changes(nb=source_netbox.client, diff_res=diff_res)
-    )
-    loop.run_until_complete(asyncio.gather(source_netbox.client.aclose()))
+    await _execute_changes(nb=source_netbox.client, diff_res=diff_res)
+    await source_netbox.client.aclose()
 
 
 async def _execute_changes(nb: NetboxClient, diff_res):
