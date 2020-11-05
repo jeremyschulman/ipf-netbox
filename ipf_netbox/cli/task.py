@@ -4,15 +4,7 @@ import asyncio
 from ipf_netbox.cli.__main__ import cli
 from ipf_netbox.tasks.sites import ensure_sites
 from ipf_netbox.tasks.devices import ensure_devices
-
-# @cli.command(name="task", context_settings=dict(ignore_unknown_options=True))
-# @click.argument("invoke_args", nargs=-1, type=click.UNPROCESSED)
-# def cli_task(invoke_args):
-#     """
-#     Execute task
-#     """
-#
-#     runner.run(invoke_args)
+from ipf_netbox.tasks.ipaddrs import ensure_ipaddrs
 
 
 @cli.group(name="tasks")
@@ -24,6 +16,13 @@ def cli_tasks(**kwargs):
     pass
 
 
+# -----------------------------------------------------------------------------
+#
+#                                 Ensure Sites
+#
+# -----------------------------------------------------------------------------
+
+
 @cli_tasks.command("ensure-sites")
 @click.pass_context
 def cli_ensure_sites(ctx: click.Context):
@@ -31,6 +30,13 @@ def cli_ensure_sites(ctx: click.Context):
 
     params = ctx.parent.params
     asyncio.run(ensure_sites(**params))
+
+
+# -----------------------------------------------------------------------------
+#
+#                                 Ensure Devices
+#
+# -----------------------------------------------------------------------------
 
 
 @cli_tasks.command(
@@ -55,3 +61,29 @@ def cli_ensure_devices(ctx: click.Context, filter_: str):
     group_params = ctx.parent.params
 
     asyncio.run(ensure_devices(**group_params, filter_=filter_))
+
+
+# -----------------------------------------------------------------------------
+#
+#                                 Ensure IP Addresses
+#
+# -----------------------------------------------------------------------------
+
+
+@cli_tasks.command(
+    "ensure-ipaddrs",
+    help="""
+\b
+Ensure Netbox contains the Managed IP Addresses from IP Fabric
+\b
+--filter <expr> is used to select IP Fabric address records
+""",
+)
+@click.option(
+    "--filter", "filters", help="IPF filter expression",
+)
+@click.pass_context
+def cli_ensure_ipaddrs(ctx: click.Context, filters: str):
+    group_params = ctx.parent.params
+
+    asyncio.run(ensure_ipaddrs(**group_params, filters=filters))

@@ -2,6 +2,8 @@ from importlib import metadata
 import os
 
 import click
+import httpx
+
 
 from ipf_netbox.config import load_config_file
 from ipf_netbox import consts
@@ -22,3 +24,17 @@ VERSION = metadata.version("ipf-netbox")
 def cli(**kwargs):
     """ IP Fabric - Netbox Utility"""
     pass
+
+
+@cli.command("test")
+def test():
+    from code import interact
+
+    interact(local=globals())
+
+
+def script():
+    try:
+        cli()
+    except httpx.HTTPStatusError as exc:
+        print(f"FAIL: HTTP error {exc.response.text}")

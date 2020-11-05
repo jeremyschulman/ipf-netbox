@@ -12,7 +12,7 @@ __all__ = ["get_config", "load_config_file", "ConfigModel"]
 g_config = ContextVar("config")
 
 
-def get_config():
+def get_config() -> ConfigModel:
     return g_config.get()
 
 
