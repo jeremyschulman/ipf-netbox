@@ -19,7 +19,9 @@ async def ensure_devices(dry_run, filter_):
     ipf = get_source("ipfabric")
     ipf_col = get_collection(source=ipf, name="devices")
 
-    await ipf_col.catalog(with_fetchargs=dict(filters=filter_))
+    async with ipf.client:
+        await ipf_col.fetch(filters=filter_)
+        ipf_col.make_keys()
 
     print("OK", flush=True)
 
@@ -30,7 +32,10 @@ async def ensure_devices(dry_run, filter_):
     print("Fetching inventory from Netbox ... ", flush=True, end="")
     netbox = get_source("netbox")
     netbox_col = get_collection(source=netbox, name="devices")
-    await netbox_col.catalog()
+    async with netbox.client:
+        await netbox_col.fetch()
+        netbox_col.make_keys()
+
     print("OK", flush=True)
 
     diff_res = diff(
@@ -58,7 +63,8 @@ async def ensure_devices(dry_run, filter_):
     if diff_res.changes:
         updates.append(_execute_changes(ipf_col, netbox_col, diff_res.changes))
 
-    await asyncio.gather(*updates)
+    async with netbox_col.source.client:
+        await asyncio.gather(*updates)
 
 
 def _report_proposed_changes(diff_res: DiffResults):
@@ -97,13 +103,12 @@ async def _execute_create(ipf_col, nb_col, missing):
 
     nb_api = nb_col.source.client
 
-    async with nb_api:
-        device_types, sites, device_role, platforms = await asyncio.gather(
-            nb_api.paginate(url="/dcim/device-types/"),
-            nb_api.paginate(url="/dcim/sites/"),
-            nb_api.paginate(url="/dcim/device-roles/", filters={"slug": "unknown"}),
-            nb_api.paginate(url="/dcim/platforms/"),
-        )
+    device_types, sites, device_role, platforms = await asyncio.gather(
+        nb_api.paginate(url="/dcim/device-types/"),
+        nb_api.paginate(url="/dcim/sites/"),
+        nb_api.paginate(url="/dcim/device-roles/", filters={"slug": "unknown"}),
+        nb_api.paginate(url="/dcim/platforms/"),
+    )
 
     device_types = {rec["slug"]: rec["id"] for rec in device_types}
     sites = {rec["slug"]: rec["id"] for rec in sites}
@@ -159,9 +164,8 @@ async def _execute_create(ipf_col, nb_col, missing):
         task.add_done_callback(_report)
         tasks.append(task)
 
-    async with nb_api:
-        nb_api.timeout = 60
-        await asyncio.gather(*tasks)
+    nb_api.timeout = 60
+    await asyncio.gather(*tasks)
 
 
 async def _execute_changes(ipf_col, nb_col, changes):
