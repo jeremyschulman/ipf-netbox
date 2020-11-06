@@ -7,9 +7,13 @@ from pydantic import ValidationError
 from pydantic_env import config_validation_errors
 from .config_models import ConfigModel
 
-__all__ = ["g_config", "load_config_file", "ConfigModel"]
+__all__ = ["get_config", "load_config_file", "ConfigModel"]
 
 g_config = ContextVar("config")
+
+
+def get_config() -> ConfigModel:
+    return g_config.get()
 
 
 def load_config_file(filepath: FileIO):

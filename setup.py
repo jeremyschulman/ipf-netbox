@@ -57,7 +57,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=requirements(),
-    entry_points={"console_scripts": ["ipf-netbox = ipf_netbox.cli.__main__:cli"]},
+    entry_points={"console_scripts": ["ipf-netbox = ipf_netbox.cli.__main__:script"]},
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",

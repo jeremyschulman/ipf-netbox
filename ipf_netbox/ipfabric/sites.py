@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Tuple, Any
 
 from ipf_netbox.collection import Collection
 from ipf_netbox.collections.sites import SiteCollection
@@ -10,10 +10,10 @@ class IPFabricSiteCollection(Collection, SiteCollection):
     source_class = IPFabricSource
 
     async def fetch(self):
-        async with self.source.client as ipf:
-            return await ipf.fetch_table(
-                url="tables/inventory/sites", columns=["siteName"]
-            )
+        ipf = self.source.client
+        self.inventory.extend(
+            await ipf.fetch_table(url="tables/inventory/sites", columns=["siteName"])
+        )
 
-    def fingerprint(self, rec: Dict) -> Dict:
-        return {"name": rec["siteName"]}
+    def fingerprint(self, rec: Dict) -> Tuple[Any, Dict]:
+        return None, {"name": rec["siteName"]}

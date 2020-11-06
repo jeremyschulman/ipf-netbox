@@ -5,7 +5,7 @@ from pydantic_env.models import NoExtraBaseModel
 
 
 class DefaultsModel(NoExtraBaseModel):
-    strip_domain_names: Optional[List[str]]
+    domain_names: Optional[List[str]]
 
 
 class SourceModel(NoExtraBaseModel):
@@ -15,4 +15,5 @@ class SourceModel(NoExtraBaseModel):
 
 class ConfigModel(NoExtraBaseModel):
     defaults: DefaultsModel
-    sources: Dict[str, SourceModel]
+    sources: Optional[Dict[str, SourceModel]]
+    maps: Optional[Dict]
