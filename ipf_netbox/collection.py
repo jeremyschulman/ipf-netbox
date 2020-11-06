@@ -98,5 +98,8 @@ class Collection(ABC, CollectionMixin):
 
         return c_cls(source=source)
 
+    def __len__(self):
+        return len(self.inventory)
+
 
 get_collection = Collection.get_collection

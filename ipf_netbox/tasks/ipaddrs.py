@@ -17,5 +17,7 @@ async def ensure_ipaddrs(dry_run, filters):
     print("OK", flush=True)
 
     if not len(ipf_col.inventory):
-        print(f"Done. No inventory matching filter:\n\t{filters}")
+        print(f"Done. No items matching filter:\n\t{filters}")
         return
+
+    print(f"IP Fabric {len(ipf_col.inventory)} records.")

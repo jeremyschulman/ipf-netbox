@@ -5,6 +5,7 @@ from aioipfabric.filters import parse_filter
 from ipf_netbox.collection import Collection
 from ipf_netbox.collections.ipaddrs import IPAddrCollection
 from ipf_netbox.ipfabric.source import IPFabricSource
+from ipf_netbox.mappings import normalize_hostname, expand_interface
 
 
 class IPFabricIPAddrCollection(Collection, IPAddrCollection):
@@ -19,15 +20,18 @@ class IPFabricIPAddrCollection(Collection, IPAddrCollection):
             return await ipf.fetch_table(
                 url="tables/addressing/managed-devs",
                 columns=["hostname", "intName", "siteName", "ip", "net"],
-                filters=params["filters"],
+                **params,
             )
 
     def fingerprint(self, rec: Dict) -> Dict:
-        pflen = rec["net"].split("/")[-1]
+        try:
+            pflen = rec["net"].split("/")[-1]
+        except AttributeError:
+            pflen = "32"
 
         return {
             "ipaddr": f"{rec['ip']}/{pflen}",
-            "interface": rec["intName"],
-            "hostname": rec["hostname"],
+            "interface": expand_interface(rec["intName"]),
+            "hostname": normalize_hostname(rec["hostname"]),
             "site": rec["siteName"],
         }

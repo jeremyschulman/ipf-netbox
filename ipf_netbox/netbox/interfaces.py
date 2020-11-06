@@ -4,22 +4,19 @@
 
 from typing import Dict
 
-from aioipfabric.filters import parse_filter
-
 # -----------------------------------------------------------------------------
 # Private Imports
 # -----------------------------------------------------------------------------
 
 from ipf_netbox.collection import Collection
-from ipf_netbox.collections.devices import DeviceCollection
-from ipf_netbox.ipfabric.source import IPFabricSource
-from ipf_netbox.mappings import normalize_hostname
+from ipf_netbox.collections.interfaces import InterfaceCollection
+from ipf_netbox.netbox.source import NetboxSource
 
 # -----------------------------------------------------------------------------
 # Exports
 # -----------------------------------------------------------------------------
 
-__all__ = ["IPFabricDeviceCollection"]
+__all__ = ["NetboxInterfaceCollection"]
 
 
 # -----------------------------------------------------------------------------
@@ -29,26 +26,20 @@ __all__ = ["IPFabricDeviceCollection"]
 # -----------------------------------------------------------------------------
 
 
-class IPFabricDeviceCollection(Collection, DeviceCollection):
-    source_class = IPFabricSource
+class NetboxInterfaceCollection(Collection, InterfaceCollection):
+    source_class = NetboxSource
 
-    async def fetch(self, **fetch_args):
-        filters = (
-            {} if "filters" not in fetch_args else parse_filter(fetch_args["filters"])
+    async def fetch(self, hostname):
+        """ fetch interfaces must be done on a per-device (hostname) basis """
+
+        return await self.source.client.paginate(
+            url="/dcim/interfaces/", filters={"device": hostname}
         )
 
-        async with self.source.client as ipf:
-            res = await ipf.fetch_devices(filters=filters)
-
-        return res
-
     def fingerprint(self, rec: Dict) -> Dict:
+
         return dict(
-            sn=rec["sn"],
-            hostname=normalize_hostname(rec["hostname"]),
-            ipaddr=rec["loginIp"],
-            site=rec["siteName"],
-            os_name=rec["family"],
-            vendor=rec["vendor"],
-            model=rec["model"],
+            hostname=rec["device"]["name"],
+            interface=rec["name"],
+            description=rec["description"],
         )

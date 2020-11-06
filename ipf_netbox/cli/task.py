@@ -5,6 +5,7 @@ from ipf_netbox.cli.__main__ import cli
 from ipf_netbox.tasks.sites import ensure_sites
 from ipf_netbox.tasks.devices import ensure_devices
 from ipf_netbox.tasks.ipaddrs import ensure_ipaddrs
+from ipf_netbox.tasks.interfaces import ensure_interfaces
 
 
 @cli.group(name="tasks")
@@ -87,3 +88,27 @@ def cli_ensure_ipaddrs(ctx: click.Context, filters: str):
     group_params = ctx.parent.params
 
     asyncio.run(ensure_ipaddrs(**group_params, filters=filters))
+
+
+# -----------------------------------------------------------------------------
+#
+#                                 Ensure Device Interfaces
+#
+# -----------------------------------------------------------------------------
+
+
+@cli_tasks.command(
+    "ensure-interfaces",
+    help="""
+\b
+Ensure Netbox contains Device Interfaces from IP Fabric
+\b
+--filter <expr> is used to select IP Fabric address records
+""",
+)
+@click.option("--filter", "filters", help="IPF filter expression", required=True)
+@click.pass_context
+def cli_ensure_interfaces(ctx: click.Context, filters: str):
+    group_params = ctx.parent.params
+
+    asyncio.run(ensure_interfaces(**group_params, filters=filters))
