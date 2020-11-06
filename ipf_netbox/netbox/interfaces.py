@@ -2,7 +2,7 @@
 # System Imports
 # -----------------------------------------------------------------------------
 
-from typing import Dict
+from typing import Dict, Tuple, Any
 
 # -----------------------------------------------------------------------------
 # Private Imports
@@ -32,14 +32,19 @@ class NetboxInterfaceCollection(Collection, InterfaceCollection):
     async def fetch(self, hostname):
         """ fetch interfaces must be done on a per-device (hostname) basis """
 
-        return await self.source.client.paginate(
-            url="/dcim/interfaces/", filters={"device": hostname}
+        self.inventory.extend(
+            await self.source.client.paginate(
+                url="/dcim/interfaces/", filters={"device": hostname}
+            )
         )
 
-    def fingerprint(self, rec: Dict) -> Dict:
+    def fingerprint(self, rec: Dict) -> Tuple[Any, Dict]:
 
-        return dict(
-            hostname=rec["device"]["name"],
-            interface=rec["name"],
-            description=rec["description"],
+        return (
+            rec["id"],
+            dict(
+                hostname=rec["device"]["name"],
+                interface=rec["name"],
+                description=rec["description"],
+            ),
         )

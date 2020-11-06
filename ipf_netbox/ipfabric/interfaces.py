@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Tuple, Any
 
 from aioipfabric.filters import parse_filter
 
@@ -17,17 +17,22 @@ class IPFabricInterfaceCollection(Collection, InterfaceCollection):
         if (filters := params.get("filters")) is not None:
             params["filters"] = parse_filter(filters)
 
-        return await self.source.client.fetch_table(
-            url="/tables/inventory/interfaces",
-            columns=["hostname", "intName", "dscr", "siteName"],
-            **params,
+        self.inventory.extend(
+            await self.source.client.fetch_table(
+                url="/tables/inventory/interfaces",
+                columns=["hostname", "intName", "dscr", "siteName"],
+                **params,
+            )
         )
 
-    def fingerprint(self, rec: Dict) -> Dict:
+    def fingerprint(self, rec: Dict) -> Tuple[Any, Dict]:
 
-        return {
-            "interface": expand_interface(rec["intName"]),
-            "hostname": normalize_hostname(rec["hostname"]),
-            "description": rec["dscr"],
-            "site": rec["siteName"],
-        }
+        return (
+            None,
+            {
+                "interface": expand_interface(rec["intName"]),
+                "hostname": normalize_hostname(rec["hostname"]),
+                "description": rec["dscr"] or "",
+                "site": rec["siteName"],
+            },
+        )
