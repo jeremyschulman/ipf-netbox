@@ -2,7 +2,7 @@
 # System Imports
 # -----------------------------------------------------------------------------
 
-from typing import Dict
+from typing import Dict, Tuple, Any
 
 from aioipfabric.filters import parse_filter
 
@@ -32,23 +32,22 @@ __all__ = ["IPFabricDeviceCollection"]
 class IPFabricDeviceCollection(Collection, DeviceCollection):
     source_class = IPFabricSource
 
-    async def fetch(self, **fetch_args):
-        filters = (
-            {} if "filters" not in fetch_args else parse_filter(fetch_args["filters"])
-        )
+    async def fetch(self, **params):
+        if (filters := params.get("filters")) is not None:
+            params["filters"] = parse_filter(filters)
 
-        async with self.source.client as ipf:
-            res = await ipf.fetch_devices(filters=filters)
+        self.inventory.extend(await self.source.client.fetch_devices(**params))
 
-        return res
-
-    def fingerprint(self, rec: Dict) -> Dict:
-        return dict(
-            sn=rec["sn"],
-            hostname=normalize_hostname(rec["hostname"]),
-            ipaddr=rec["loginIp"],
-            site=rec["siteName"],
-            os_name=rec["family"],
-            vendor=rec["vendor"],
-            model=rec["model"],
+    def fingerprint(self, rec: Dict) -> Tuple[Any, Dict]:
+        return (
+            None,
+            dict(
+                sn=rec["sn"],
+                hostname=normalize_hostname(rec["hostname"]),
+                ipaddr=rec["loginIp"],
+                site=rec["siteName"],
+                os_name=rec["family"],
+                vendor=rec["vendor"],
+                model=rec["model"],
+            ),
         )

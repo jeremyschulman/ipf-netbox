@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Tuple, Any
 
 from aioipfabric.filters import parse_filter
 
@@ -23,15 +23,18 @@ class IPFabricIPAddrCollection(Collection, IPAddrCollection):
                 **params,
             )
 
-    def fingerprint(self, rec: Dict) -> Dict:
+    def fingerprint(self, rec: Dict) -> Tuple[Any, Dict]:
         try:
             pflen = rec["net"].split("/")[-1]
         except AttributeError:
             pflen = "32"
 
-        return {
-            "ipaddr": f"{rec['ip']}/{pflen}",
-            "interface": expand_interface(rec["intName"]),
-            "hostname": normalize_hostname(rec["hostname"]),
-            "site": rec["siteName"],
-        }
+        return (
+            None,
+            {
+                "ipaddr": f"{rec['ip']}/{pflen}",
+                "interface": expand_interface(rec["intName"]),
+                "hostname": normalize_hostname(rec["hostname"]),
+                "site": rec["siteName"],
+            },
+        )
