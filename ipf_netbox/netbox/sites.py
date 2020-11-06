@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Tuple, Any
 
 from ipf_netbox.collection import Collection
 from ipf_netbox.collections.sites import SiteCollection
@@ -9,9 +9,8 @@ class NetboxSiteCollection(Collection, SiteCollection):
     source_class = NetboxSource
 
     async def fetch(self):
+        nb = self.source.client
+        self.inventory.extend(await nb.paginate(url="/dcim/sites"))
 
-        async with self.source.client_class() as nb:
-            return await nb.paginate(url="/dcim/sites")
-
-    def fingerprint(self, rec: Dict) -> Dict:
-        return {"name": rec["slug"]}
+    def fingerprint(self, rec: Dict) -> Tuple[Any, Dict]:
+        return rec["id"], {"name": rec["slug"]}

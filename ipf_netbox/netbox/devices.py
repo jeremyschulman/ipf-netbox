@@ -2,7 +2,7 @@
 # System Imports
 # -----------------------------------------------------------------------------
 
-from typing import Dict
+from typing import Dict, Tuple, Any
 
 # -----------------------------------------------------------------------------
 # Private Imports
@@ -31,12 +31,14 @@ class NetboxDeviceCollection(Collection, DeviceCollection):
 
     async def fetch(self, **kwargs):
         """ exclude devices without a platform or primary-ip address """
-        async with self.source.client as api:
-            return await api.paginate(
+        api = self.source.client
+        self.inventory.extend(
+            await api.paginate(
                 url="/dcim/devices/", filters={"exclude": "config_context"},
             )
+        )
 
-    def fingerprint(self, rec: Dict) -> Dict:
+    def fingerprint(self, rec: Dict) -> Tuple[Any, Dict]:
         dt = rec["device_type"]
 
         try:
@@ -49,13 +51,16 @@ class NetboxDeviceCollection(Collection, DeviceCollection):
         except (TypeError, KeyError):
             os_name = ""
 
-        return dict(
-            sn=rec["serial"],
-            hostname=rec["name"],
-            ipaddr=ipaddr,
-            site=rec["site"]["slug"],
-            os_name=os_name,
-            vendor=dt["manufacturer"]["slug"],
-            model=dt["slug"],
-            status=rec["status"]["value"],
+        return (
+            rec["id"],
+            dict(
+                sn=rec["serial"],
+                hostname=rec["name"],
+                ipaddr=ipaddr,
+                site=rec["site"]["slug"],
+                os_name=os_name,
+                vendor=dt["manufacturer"]["slug"],
+                model=dt["slug"],
+                status=rec["status"]["value"],
+            ),
         )
