@@ -31,9 +31,8 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
 
     async def fetch(self, **kwargs):
         """ exclude devices without a platform or primary-ip address """
-        api = self.source.client
         self.inventory.extend(
-            await api.paginate(
+            await self.source.client.paginate(
                 url="/dcim/devices/", filters={"exclude": "config_context"},
             )
         )
