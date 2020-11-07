@@ -49,20 +49,17 @@ class NetboxInterfaceCollection(Collector, InterfaceCollection):
     async def create_missing(
         self, missing, callback: Optional[CollectionCallback] = None
     ):
-        tasks = dict()
         client: NetboxClient = self.source.client
-
-        callback = callback or (lambda _k, _t: True)
 
         device_records = await client.fetch_devices(
             hostname_list=(rec["hostname"] for rec in missing.values()), key="name"
         )
 
-        for key, item in missing.items():
+        def _create_task(key, item):
             hostname, if_name = key
             if hostname not in device_records:
                 print(f"ERROR: device {hostname} missing.")
-                continue
+                return None
 
             # TODO: set the interface type correctly based on some kind of mapping definition.
             #       for now, use this name-basis for loopback, vlan, port-channel.
@@ -71,7 +68,7 @@ class NetboxInterfaceCollection(Collector, InterfaceCollection):
                 "virtual" if if_name.lower().startswith(("l", "v", "p")) else "other"
             )
 
-            task = asyncio.create_task(
+            return asyncio.create_task(
                 client.post(
                     url="/dcim/interfaces/",
                     json=dict(
@@ -82,10 +79,10 @@ class NetboxInterfaceCollection(Collector, InterfaceCollection):
                     ),
                 )
             )
-            task.add_done_callback(lambda _t: callback(tasks[_t], _t))
-            tasks[task] = key
 
-        await asyncio.gather(*tasks)
+        await self.source.update(
+            updates=missing, callback=callback, creator=_create_task
+        )
 
     async def update_changes(
         self, changes: Dict, callback: Optional[CollectionCallback] = None
@@ -93,19 +90,15 @@ class NetboxInterfaceCollection(Collector, InterfaceCollection):
         # Presently the only field to update is description; so we don't need to put
         # much logic into this post body process.  Might need to in the future.
 
-        tasks = dict()
-        client: NetboxClient = self.source.client
-        callback = callback or (lambda _k, _t: True)
+        client = self.source.client
 
-        for key, item in changes.items():
+        def _create_task(key, item):
             if_id = self.inventory_keys[key]["id"]
-            task = asyncio.create_task(
+            return asyncio.create_task(
                 client.patch(
                     url=f"/dcim/interfaces/{if_id}/",
                     json=dict(description=item.fields["description"]),
                 )
             )
-            tasks[task] = key
-            task.add_done_callback(lambda _t: callback(tasks[_t], _t))
 
-        await asyncio.gather(*tasks)
+        await self.source.update(changes, callback, _create_task)

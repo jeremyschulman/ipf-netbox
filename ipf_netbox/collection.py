@@ -4,7 +4,7 @@ from operator import itemgetter
 
 
 from ipf_netbox.log import get_logger
-
+from ipf_netbox.source import Source
 
 __all__ = ["Collector", "CollectionMixin", "CollectionCallback", "get_collection"]
 
@@ -35,7 +35,7 @@ class CollectionMixin(object):
 
 
 class Collector(ABC, CollectionMixin):
-    def __init__(self, source):
+    def __init__(self, source: Source):
 
         # `inventory` is a list of recoreds as they are obtained from the
         # source.  The structure each inventory record is specific to the

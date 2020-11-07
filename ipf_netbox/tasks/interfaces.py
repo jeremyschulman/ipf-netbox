@@ -1,4 +1,5 @@
 import asyncio
+from operator import itemgetter
 
 from httpx import Response
 
@@ -80,20 +81,24 @@ def _diff_report(diff_res):
 
 
 async def _diff_create(nb_col, missing):
-    def _done(key, _task):
-        _res: Response = _task.result()
+    fields_fn = itemgetter("hostname", "interface")
+
+    def _done(item, task):
+        _res: Response = task.result()
         _res.raise_for_status()
-        _hostname, _if_name = key
+        _hostname, _if_name = fields_fn(item)
         print(f"CREATE:OK: interface {_hostname}, {_if_name}", flush=True)
 
     await nb_col.create_missing(missing, callback=_done)
 
 
 async def _diff_update(nb_col: Collector, changes):
-    def _done(_key, _task):
-        res: Response = _task.result()
-        _hostname, _ifname = _key
+    fields_fn = itemgetter("hostname", "interface")
+
+    def _done(change, task):
+        res: Response = task.result()
+        _hostname, _ifname = fields_fn(change.fingerprint)
         res.raise_for_status()
-        print(f"UPDATE:OK: interface {_hostname}, {_ifname}", flush=True)
+        print(f"CHANGE:OK: interface {_hostname}, {_ifname}", flush=True)
 
     await nb_col.update_changes(changes=changes, callback=_done)

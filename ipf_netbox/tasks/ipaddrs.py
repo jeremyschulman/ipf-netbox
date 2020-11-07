@@ -28,6 +28,8 @@ async def ensure_ipaddrs(dry_run, filters):
     # Need to fetch from Netbox on a per-device basis.
     # -------------------------------------------------------------------------
 
+    print("Fetching from Netbox ... ", flush=True, end="")
+
     nb_col = get_collection(source=get_source("netbox"), name="ipaddrs")
 
     device_list = {rec["hostname"] for rec in ipf_col.keys.values()}
