@@ -65,10 +65,9 @@ class Collector(ABC, CollectionMixin):
         # `cache` is expected to be used by the subclass to store information
         # that it may need across various calls; for example caching device
         # records that may have information required by processing other
-        # collections (ipaddrs).  This attribute is designated private as it
-        # should only be used by the subclass.
+        # collections (ipaddrs).
 
-        self._cache = dict()
+        self.cache = dict()
 
     def make_keys(
         self,

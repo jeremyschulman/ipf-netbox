@@ -31,36 +31,35 @@ class NetboxIPAddrCollection(Collector, IPAddrCollection):
     async def create_missing(
         self, missing, callback: Optional[CollectionCallback] = None
     ):
+
+        client: NetboxClient = self.source.client
+
         # for each missing record we will need to fetch the interface record so
         # we can bind the address to it.
 
         if_key_fn = itemgetter("hostname", "interface")
         if_items = map(if_key_fn, missing.values())
-        client: NetboxClient = self.source.client
         if_recs = await client.fetch_devices_interfaces(if_items)
         if_lkup = {(rec["device"]["name"], rec["name"]): rec for rec in if_recs}
 
         api = self.source.client
-        callback = callback or (lambda _k, _t: True)
-        tasks = dict()
 
-        for item in missing.values():
+        def _create_task(key, item):
             if_key = if_key_fn(item)
             if (if_rec := if_lkup.get(if_key)) is None:
-                print("SKIP: missing interface: {}, {}".format(*if_key))
-                continue
+                print(
+                    "SKIP: ipaddr {}, missing interface: {}, {}.".format(key, *if_key)
+                )
+                return None
 
-            task = asyncio.create_task(
+            return asyncio.create_task(
                 api.post(
                     url=_IPAM_ADDR_URL,
                     json=dict(address=item["ipaddr"], interface=if_rec["id"]),
                 )
             )
 
-            tasks[task] = item
-            task.add_done_callback(lambda _t: callback(tasks[_t], _t))
-
-        await asyncio.gather(*tasks)
+        await self.source.update(missing, callback, _create_task)
 
     async def update_changes(
         self, changes: Dict, callback: Optional[CollectionCallback] = None
