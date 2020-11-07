@@ -2,13 +2,13 @@
 # System Imports
 # -----------------------------------------------------------------------------
 
-from typing import Dict, Tuple, Any
+from typing import Dict
 
 # -----------------------------------------------------------------------------
 # Private Imports
 # -----------------------------------------------------------------------------
 
-from ipf_netbox.collection import Collection
+from ipf_netbox.collection import Collector
 from ipf_netbox.collections.devices import DeviceCollection
 from ipf_netbox.netbox.source import NetboxSource
 
@@ -26,7 +26,7 @@ __all__ = ["NetboxDeviceCollection"]
 # -----------------------------------------------------------------------------
 
 
-class NetboxDeviceCollection(Collection, DeviceCollection):
+class NetboxDeviceCollection(Collector, DeviceCollection):
     source_class = NetboxSource
 
     async def fetch(self, **kwargs):
@@ -38,7 +38,7 @@ class NetboxDeviceCollection(Collection, DeviceCollection):
             )
         )
 
-    def fingerprint(self, rec: Dict) -> Tuple[Any, Dict]:
+    def fingerprint(self, rec: Dict) -> Dict:
         dt = rec["device_type"]
 
         try:
@@ -51,16 +51,13 @@ class NetboxDeviceCollection(Collection, DeviceCollection):
         except (TypeError, KeyError):
             os_name = ""
 
-        return (
-            rec["id"],
-            dict(
-                sn=rec["serial"],
-                hostname=rec["name"],
-                ipaddr=ipaddr,
-                site=rec["site"]["slug"],
-                os_name=os_name,
-                vendor=dt["manufacturer"]["slug"],
-                model=dt["slug"],
-                status=rec["status"]["value"],
-            ),
+        return dict(
+            sn=rec["serial"],
+            hostname=rec["name"],
+            ipaddr=ipaddr,
+            site=rec["site"]["slug"],
+            os_name=os_name,
+            vendor=dt["manufacturer"]["slug"],
+            model=dt["slug"],
+            status=rec["status"]["value"],
         )

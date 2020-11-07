@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Callable, Tuple, Optional
+from typing import List, Dict, Any, Callable, Tuple, Optional, Type
 from abc import ABC
 from operator import itemgetter
 
@@ -6,7 +6,9 @@ from operator import itemgetter
 from ipf_netbox.log import get_logger
 
 
-__all__ = ["Collection", "CollectionMixin", "get_collection"]
+__all__ = ["Collector", "CollectionMixin", "CollectionCallback", "get_collection"]
+
+CollectionCallback = Type[Callable[[Tuple, Any], None]]
 
 
 class CollectionMixin(object):
@@ -15,8 +17,24 @@ class CollectionMixin(object):
     FINGERPRINT_FIELDS = None
     KEY_FIELDS = None
 
+    async def fetch(self, **fetch_args):
+        pass
 
-class Collection(ABC, CollectionMixin):
+    def fingerprint(self, rec: Dict) -> Dict:
+        pass
+
+    async def create_missing(
+        self, missing: Dict, callback: Optional[CollectionCallback] = None
+    ):
+        pass
+
+    async def update_changes(
+        self, changes: Dict, callback: Optional[CollectionCallback] = None
+    ):
+        pass
+
+
+class Collector(ABC, CollectionMixin):
     def __init__(self, source):
 
         # `inventory` is a list of recoreds as they are obtained from the
@@ -26,9 +44,8 @@ class Collection(ABC, CollectionMixin):
 
         self.inventory: List[Any] = list()
 
-        # the keys created from the inventory.  this is a dict where the
-        # key=<fp-key> and the value is the fingerprint record of the collection
-        # fields.
+        # `keys` is a dict where the key=<fp-key> and the value is the
+        # fingerprint record of the collection fields.
 
         self.keys: Dict[Tuple, Dict] = dict()
 
@@ -38,14 +55,8 @@ class Collection(ABC, CollectionMixin):
         # uid value is used when making updates to an exists record in the
         # source.
 
-        self.uids: Dict[Tuple, Any] = dict()
+        self.inventory_keys: Dict[Tuple, Any] = dict()
         self.source = source
-
-    async def fetch(self, **fetch_args):
-        pass
-
-    def fingerprint(self, rec: Dict) -> Dict:
-        pass
 
     def make_keys(
         self,
@@ -70,7 +81,7 @@ class Collection(ABC, CollectionMixin):
 
         for rec in with_inventory or self.inventory:
             try:
-                uid, fp = self.fingerprint(rec)
+                fp = self.fingerprint(rec)
                 if not with_filter(fp):
                     continue
 
@@ -79,10 +90,10 @@ class Collection(ABC, CollectionMixin):
 
             as_key = with_translate(kf_getter(fp))
             self.keys[as_key] = fp
-            self.uids[as_key] = uid
+            self.inventory_keys[as_key] = rec
 
     @classmethod
-    def get_collection(cls, source, name):
+    def get_collection(cls, source, name) -> "Collector":
         try:
             c_cls = next(
                 iter(
@@ -109,4 +120,4 @@ class Collection(ABC, CollectionMixin):
         return len(self.inventory)
 
 
-get_collection = Collection.get_collection
+get_collection = Collector.get_collection

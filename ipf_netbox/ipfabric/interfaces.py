@@ -1,15 +1,15 @@
-from typing import Dict, Tuple, Any
+from typing import Dict
 
 from aioipfabric.filters import parse_filter
 
-from ipf_netbox.collection import Collection
+from ipf_netbox.collection import Collector
 from ipf_netbox.collections.interfaces import InterfaceCollection
 from ipf_netbox.ipfabric.source import IPFabricSource
 
 from ipf_netbox.mappings import expand_interface, normalize_hostname
 
 
-class IPFabricInterfaceCollection(Collection, InterfaceCollection):
+class IPFabricInterfaceCollection(Collector, InterfaceCollection):
     source_class = IPFabricSource
 
     async def fetch(self, **params):
@@ -25,14 +25,10 @@ class IPFabricInterfaceCollection(Collection, InterfaceCollection):
             )
         )
 
-    def fingerprint(self, rec: Dict) -> Tuple[Any, Dict]:
-
-        return (
-            None,
-            {
-                "interface": expand_interface(rec["intName"]),
-                "hostname": normalize_hostname(rec["hostname"]),
-                "description": rec["dscr"] or "",
-                "site": rec["siteName"],
-            },
-        )
+    def fingerprint(self, rec: Dict) -> Dict:
+        return {
+            "interface": expand_interface(rec["intName"]),
+            "hostname": normalize_hostname(rec["hostname"]),
+            "description": rec["dscr"] or "",
+            "site": rec["siteName"],
+        }

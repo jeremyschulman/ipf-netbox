@@ -1,11 +1,11 @@
-from typing import Dict, Tuple, Any
+from typing import Dict
 
-from ipf_netbox.collection import Collection
+from ipf_netbox.collection import Collector
 from ipf_netbox.collections.ipaddrs import IPAddrCollection
 from ipf_netbox.netbox.source import NetboxSource
 
 
-class NetboxIPAddrCollection(Collection, IPAddrCollection):
+class NetboxIPAddrCollection(Collector, IPAddrCollection):
     source_class = NetboxSource
 
     async def fetch(self, hostname, **params):
@@ -14,12 +14,9 @@ class NetboxIPAddrCollection(Collection, IPAddrCollection):
             await api.paginate(url="/ipam/ip-addresses/", filters={"device": hostname})
         )
 
-    def fingerprint(self, rec: Dict) -> Tuple[Any, Dict]:
-        return (
-            rec["id"],
-            {
-                "ipaddr": rec["address"],
-                "hostname": rec["device"],
-                "interface": rec["interface"],
-            },
-        )
+    def fingerprint(self, rec: Dict) -> Dict:
+        return {
+            "ipaddr": rec["address"],
+            "hostname": rec["device"],
+            "interface": rec["interface"],
+        }

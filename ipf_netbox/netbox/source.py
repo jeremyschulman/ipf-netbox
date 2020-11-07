@@ -15,6 +15,7 @@ NAME = "netbox"
 class NetboxClient(AsyncClient):
     ENV_VARS = ["NETBOX_ADDR", "NETBOX_TOKEN"]
     DEFAULT_PAGE_SZ = 100
+    API_RATE_LIMIT = 100
 
     def __init__(self):
         try:
@@ -27,6 +28,11 @@ class NetboxClient(AsyncClient):
             headers=dict(Authorization=f"Token {token}"),
             verify=False,
         )
+        self._api_s4 = asyncio.Semaphore(self.API_RATE_LIMIT)
+
+    async def request(self, *vargs, **kwargs):
+        async with self._api_s4:
+            return await super(NetboxClient, self).request(*vargs, **kwargs)
 
     async def paginate(
         self, url: str, page_sz: Optional[int] = None, filters: Optional[Dict] = None
@@ -82,6 +88,20 @@ class NetboxClient(AsyncClient):
         return list(
             chain.from_iterable(task_r.json()["results"] for task_r in task_results)
         )
+
+    async def fetch_device(self, hostname):
+        res = await self.get("/dcim/devices/", params=dict(name=hostname))
+        res.raise_for_status()
+        body = res.json()
+        return [] if not body["count"] else body["results"]
+
+    async def fetch_devices(self, hostname_list, key=None):
+        res = await asyncio.gather(
+            *(self.fetch_device(hostname) for hostname in hostname_list)
+        )
+
+        flat = chain.from_iterable(res)
+        return {rec[key]: rec for rec in flat} if key else flat
 
 
 class NetboxSource(Source):
