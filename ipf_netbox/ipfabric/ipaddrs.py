@@ -16,12 +16,13 @@ class IPFabricIPAddrCollection(Collector, IPAddrCollection):
         if (filters := params.get("filters")) is not None:
             params["filters"] = parse_filter(filters)
 
-        async with self.source.client as ipf:
-            return await ipf.fetch_table(
+        self.inventory.extend(
+            await self.source.client.fetch_table(
                 url="tables/addressing/managed-devs",
                 columns=["hostname", "intName", "siteName", "ip", "net"],
                 **params,
             )
+        )
 
     def fingerprint(self, rec: Dict) -> Dict:
         try:
