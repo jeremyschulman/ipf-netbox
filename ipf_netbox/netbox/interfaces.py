@@ -64,6 +64,13 @@ class NetboxInterfaceCollection(Collector, InterfaceCollection):
                 print(f"ERROR: device {hostname} missing.")
                 continue
 
+            # TODO: set the interface type correctly based on some kind of mapping definition.
+            #       for now, use this name-basis for loopback, vlan, port-channel.
+
+            if_type = (
+                "virtual" if if_name.lower().startswith(("l", "v", "p")) else "other"
+            )
+
             task = asyncio.create_task(
                 client.post(
                     url="/dcim/interfaces/",
@@ -71,8 +78,7 @@ class NetboxInterfaceCollection(Collector, InterfaceCollection):
                         device=device_records[hostname]["id"],
                         name=if_name,
                         description=item["description"],
-                        # TODO: set the interface type correctly based on some kind of mapping definition.
-                        type="other",
+                        type=if_type,
                     ),
                 )
             )

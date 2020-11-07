@@ -53,7 +53,7 @@ async def ensure_interfaces(dry_run, filters):
 
     diff_res = diff(source_from=ipf_col, sync_to=nb_col)
     if not diff_res:
-        print("Done.  no differences.")
+        print("Done, no differences.")
         return
 
     _diff_report(diff_res)
