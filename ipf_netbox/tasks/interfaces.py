@@ -1,11 +1,12 @@
 import asyncio
+from operator import itemgetter
 
 from httpx import Response
 
 from ipf_netbox.source import get_source
-from ipf_netbox.collection import get_collection
+from ipf_netbox.collection import get_collection, Collector
 
-from ipf_netbox.diff import diff  # , DiffResults
+from ipf_netbox.diff import diff
 
 
 async def ensure_interfaces(dry_run, filters):
@@ -24,7 +25,7 @@ async def ensure_interfaces(dry_run, filters):
         await ipf_col.fetch(filters=filters)
         ipf_col.make_keys()
 
-    print(f"OK.  {len(ipf_col)} items.", flush=True)
+    print(f"{len(ipf_col)} items.", flush=True)
 
     if not len(ipf_col):
         return
@@ -36,13 +37,16 @@ async def ensure_interfaces(dry_run, filters):
     print("Fetching from Netbox ... ", flush=True, end="")
 
     device_list = {rec["hostname"] for rec in ipf_col.keys.values()}
-    async with nb_col.source.client:
+    print(f"{len(device_list)} devices ... ", flush=True, end="")
+
+    async with nb_col.source.client as api:
+        api.timeout = 120
         await asyncio.gather(
             *(nb_col.fetch(hostname=hostname) for hostname in device_list)
         )
 
     nb_col.make_keys()
-    print(f"OK.  {len(nb_col)} items.", flush=True)
+    print(f"{len(nb_col)} items.", flush=True)
 
     # -------------------------------------------------------------------------
     # check for differences and process accordingly.
@@ -50,7 +54,7 @@ async def ensure_interfaces(dry_run, filters):
 
     diff_res = diff(source_from=ipf_col, sync_to=nb_col)
     if not diff_res:
-        print("Done.  no differences.")
+        print("Done, no differences.")
         return
 
     _diff_report(diff_res)
@@ -60,10 +64,10 @@ async def ensure_interfaces(dry_run, filters):
 
     tasks = list()
     if diff_res.missing:
-        tasks.append(_diff_create(ipf_col, nb_col, diff_res.missing))
+        tasks.append(_diff_create(nb_col, diff_res.missing))
 
     if diff_res.changes:
-        tasks.append(_diff_update(ipf_col, nb_col, diff_res.changes))
+        tasks.append(_diff_update(nb_col, diff_res.changes))
 
     async with nb_col.source.client:
         await asyncio.gather(*tasks)
@@ -76,80 +80,25 @@ def _diff_report(diff_res):
     print("\n")
 
 
-async def fetch_devices(api, device_list, key="name") -> dict:
-    records = dict()
+async def _diff_create(nb_col, missing):
+    fields_fn = itemgetter("hostname", "interface")
 
-    for next_done in asyncio.as_completed(
-        [api.get("/dcim/devices/", params=dict(name=device)) for device in device_list]
-    ):
-        res = await next_done
-        res.raise_for_status()
-        rec = res.json()["results"][0]
-        records[rec[key]] = rec
-
-    return records
-
-
-async def _diff_create(ipf_col, nb_col, missing):
-
-    api = nb_col.source.client
-
-    # we need the netbox device records so that we have the device ID to
-    # associate with the interface create body.
-
-    device_records = await fetch_devices(
-        api, device_list={rec["hostname"] for rec in missing.values()}
-    )
-
-    tasks = dict()
-
-    def _done(_task):
-        _res: Response = _task.result()
+    def _done(item, task):
+        _res: Response = task.result()
         _res.raise_for_status()
-        _hostname, _if_name = tasks[_task]
-        print(f"OK. create interface {_hostname}, {_if_name}")
+        _hostname, _if_name = fields_fn(item)
+        print(f"CREATE:OK: interface {_hostname}, {_if_name}", flush=True)
 
-    for key, item in missing.items():
-        hostname, if_name = key
-        task = asyncio.create_task(
-            api.post(
-                "/dcim/interfaces/",
-                json=dict(
-                    device=device_records[hostname]["id"],
-                    name=if_name,
-                    description=item["description"],
-                    # TODO: set the interface type correctly based on some kind of mapping definition.
-                    type="other",
-                ),
-            )
-        )
-        task.add_done_callback(_done)
-        tasks[task] = key
-
-    await asyncio.gather(*tasks)
+    await nb_col.create_missing(missing, callback=_done)
 
 
-async def _diff_update(ipf_col, nb_col, changes):
-    tasks = dict()
+async def _diff_update(nb_col: Collector, changes):
+    fields_fn = itemgetter("hostname", "interface")
 
-    def _done(_task):
-        res: Response = _task.result()
-        _hostname, _ifname = tasks[_task]
+    def _done(change, task):
+        res: Response = task.result()
+        _hostname, _ifname = fields_fn(change.fingerprint)
         res.raise_for_status()
-        print(f"OK. update interface {_hostname}, {_ifname}")
+        print(f"CHANGE:OK: interface {_hostname}, {_ifname}", flush=True)
 
-    # Presently the only field to update is description; so we don't need to put
-    # much logic into this post body process.  Might need to in the future.
-
-    for key, item in changes.items():
-        nb_if_id = nb_col.uids[key]
-        task = asyncio.create_task(
-            nb_col.source.client.patch(
-                url=f"/dcim/interfaces/{nb_if_id}/",
-                json={"description": item.fields["description"]},
-            )
-        )
-        tasks[task] = key
-        task.add_done_callback(_done)
-
-    await asyncio.gather(*tasks)
+    await nb_col.update_changes(changes=changes, callback=_done)

@@ -1,15 +1,15 @@
 from typing import Dict, Callable, Optional
 from collections import namedtuple
 
-from ipf_netbox.collection import Collection
+from ipf_netbox.collection import Collector
 
 Changes = namedtuple("Changes", ["fingerprint", "fields"])
 DiffResults = namedtuple("DiffResults", ["missing", "changes"])
 
 
 def diff(
-    source_from: Collection,
-    sync_to: Collection,
+    source_from: Collector,
+    sync_to: Collector,
     fields_cmp: Optional[Dict[str, Callable]] = None,
 ):
     """

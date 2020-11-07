@@ -8,9 +8,9 @@ from ipf_netbox.tasks.ipaddrs import ensure_ipaddrs
 from ipf_netbox.tasks.interfaces import ensure_interfaces
 
 
-@cli.group(name="tasks")
+@cli.group(name="task")
 @click.option("--dry-run", is_flag=True, help="Dry-run mode")
-def cli_tasks(**kwargs):
+def cli_task(**kwargs):
     """
     Execute a specific task
     """
@@ -24,7 +24,7 @@ def cli_tasks(**kwargs):
 # -----------------------------------------------------------------------------
 
 
-@cli_tasks.command("ensure-sites")
+@cli_task.command("ensure-sites")
 @click.pass_context
 def cli_ensure_sites(ctx: click.Context):
     """ Ensure Netbox has the same Sites as defined in IP Fabric"""
@@ -40,7 +40,7 @@ def cli_ensure_sites(ctx: click.Context):
 # -----------------------------------------------------------------------------
 
 
-@cli_tasks.command(
+@cli_task.command(
     "ensure-devices",
     help="""
 \b
@@ -71,7 +71,7 @@ def cli_ensure_devices(ctx: click.Context, filter_: str):
 # -----------------------------------------------------------------------------
 
 
-@cli_tasks.command(
+@cli_task.command(
     "ensure-ipaddrs",
     help="""
 \b
@@ -97,7 +97,7 @@ def cli_ensure_ipaddrs(ctx: click.Context, filters: str):
 # -----------------------------------------------------------------------------
 
 
-@cli_tasks.command(
+@cli_task.command(
     "ensure-interfaces",
     help="""
 \b

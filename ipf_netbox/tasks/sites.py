@@ -23,7 +23,11 @@ async def ensure_sites(dry_run):
     col_ipf = get_collection(source=source_ipf, name="sites")
     col_netbox = get_collection(source=source_netbox, name="sites")
 
-    await asyncio.gather(col_ipf.catalog(), col_netbox.catalog())
+    async with col_netbox.source.client, col_ipf.source.client:
+        await asyncio.gather(col_ipf.fetch(), col_netbox.fetch())
+
+    col_ipf.make_keys()
+    col_netbox.make_keys()
 
     print("OK")
 
@@ -38,8 +42,8 @@ async def ensure_sites(dry_run):
     if dry_run:
         return
 
-    await _execute_changes(nb=source_netbox.client, diff_res=diff_res)
-    await source_netbox.client.aclose()
+    async with col_netbox.source.client:
+        await _execute_changes(nb=source_netbox.client, diff_res=diff_res)
 
 
 async def _execute_changes(nb: NetboxClient, diff_res):

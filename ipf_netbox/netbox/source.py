@@ -1,8 +1,8 @@
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Callable
 import asyncio
 from os import environ
 from operator import itemgetter
-from itertools import chain
+from itertools import chain, starmap
 
 
 from httpx import AsyncClient
@@ -15,6 +15,7 @@ NAME = "netbox"
 class NetboxClient(AsyncClient):
     ENV_VARS = ["NETBOX_ADDR", "NETBOX_TOKEN"]
     DEFAULT_PAGE_SZ = 100
+    API_RATE_LIMIT = 100
 
     def __init__(self):
         try:
@@ -27,6 +28,11 @@ class NetboxClient(AsyncClient):
             headers=dict(Authorization=f"Token {token}"),
             verify=False,
         )
+        self._api_s4 = asyncio.Semaphore(self.API_RATE_LIMIT)
+
+    async def request(self, *vargs, **kwargs):
+        async with self._api_s4:
+            return await super(NetboxClient, self).request(*vargs, **kwargs)
 
     async def paginate(
         self, url: str, page_sz: Optional[int] = None, filters: Optional[Dict] = None
@@ -82,6 +88,50 @@ class NetboxClient(AsyncClient):
         return list(
             chain.from_iterable(task_r.json()["results"] for task_r in task_results)
         )
+
+    # -------------------------------------------------------------------------
+    #
+    #                        Device Helper Methods
+    #
+    # -------------------------------------------------------------------------
+
+    async def fetch_device(self, hostname):
+        res = await self.get("/dcim/devices/", params=dict(name=hostname))
+        res.raise_for_status()
+        body = res.json()
+        return [] if not body["count"] else body["results"]
+
+    async def fetch_devices(self, hostname_list, key=None):
+        res = await asyncio.gather(*(map(self.fetch_device, hostname_list)))
+        flat = chain.from_iterable(res)
+        if not key:
+            return list(flat)
+
+        key_fn = key if isinstance(key, Callable) else itemgetter(key)
+        return {key_fn(rec): rec for rec in flat}
+
+    # -------------------------------------------------------------------------
+    #
+    #                        Device Interface Helper Methods
+    #
+    # -------------------------------------------------------------------------
+
+    async def fetch_device_interface(self, hostname, if_name):
+        res = await self.get(
+            "/dcim/interfaces/", params=dict(device=hostname, name=if_name)
+        )
+        res.raise_for_status()
+        body = res.json()
+        return [] if not body["count"] else body["results"]
+
+    async def fetch_devices_interfaces(self, items, key=None):
+        res = await asyncio.gather(*(starmap(self.fetch_device_interface, items)))
+        flat = chain.from_iterable(res)
+        if not key:
+            return list(flat)
+
+        key_fn = key if isinstance(key, Callable) else itemgetter(key)  # noqa
+        return {key_fn(rec): rec for rec in flat}
 
 
 class NetboxSource(Source):
