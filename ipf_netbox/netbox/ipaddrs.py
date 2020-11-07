@@ -65,4 +65,6 @@ class NetboxIPAddrCollection(Collector, IPAddrCollection):
     async def update_changes(
         self, changes: Dict, callback: Optional[CollectionCallback] = None
     ):
-        pass
+        emsg = f"{self.__class__.__name__}:update not implemented."
+        print(emsg)
+        # raise NotImplementedError(emsg)
