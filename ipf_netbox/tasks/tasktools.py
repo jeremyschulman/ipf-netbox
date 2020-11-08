@@ -12,6 +12,6 @@ def with_sources(coro):
             ipf_src.client.api.timeout = 120
             nb_src.client.timeout = 120
 
-            await coro(ipf_src, nb_src, *vargs, **kwargs)
+            return await coro(ipf_src, nb_src, *vargs, **kwargs)
 
     return wrapper

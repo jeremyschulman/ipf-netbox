@@ -18,8 +18,11 @@ def cli_onboard(**params):
     """
 
     async def onboard_devices():
-        await ensure_devices(**params)
-        await ensure_interfaces(**params)
+        ipf_col_devs = await ensure_devices(**params)
+
+        params.pop("filters", None)
+        params["devices"] = ipf_col_devs
+        params["interfaces"] = await ensure_interfaces(**params)
         await ensure_ipaddrs(**params)
 
     asyncio.run(onboard_devices())

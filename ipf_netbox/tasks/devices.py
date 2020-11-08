@@ -12,7 +12,7 @@ from ipf_netbox.tasks.tasktools import with_sources
 
 
 @with_sources
-async def ensure_devices(ipf, netbox, **params):
+async def ensure_devices(ipf, netbox, **params) -> IPFabricDeviceCollection:
     """
     Ensure Netbox contains devices found IP Fabric in given Site
     """
@@ -32,7 +32,7 @@ async def ensure_devices(ipf, netbox, **params):
 
     if not len(ipf_col.source_records):
         print(f"Done. No source_records matching filter:\n\t{filters}")
-        return
+        return ipf_col
 
     print("Fetching from Netbox ... ", flush=True, end="")
     netbox_col: NetboxDeviceCollection = get_collection(  # noqa
@@ -54,12 +54,12 @@ async def ensure_devices(ipf, netbox, **params):
 
     if diff_res is None:
         print("No changes required.")
-        return
+        return ipf_col
 
     _report_proposed_changes(diff_res)
 
     if params.get("dry_run", False) is True:
-        return
+        return ipf_col
 
     updates = list()
 
@@ -70,6 +70,8 @@ async def ensure_devices(ipf, netbox, **params):
         updates.append(_execute_changes(params, ipf_col, netbox_col, diff_res.changes))
 
     await asyncio.gather(*updates)
+
+    return ipf_col
 
 
 def _report_proposed_changes(diff_res: DiffResults):

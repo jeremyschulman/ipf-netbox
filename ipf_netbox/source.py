@@ -36,18 +36,10 @@ class Source(ABC):
                 continue
 
             tasks[coro] = item
-            # task = asyncio.create_task(coro)
-            # tasks[task] = item
-            # task.add_done_callback(lambda _t: callback(tasks[_t], _t))
 
         async for orig_coro, res in igather(tasks, limit=100):
             item = tasks[orig_coro]
             callback(item, res)
-
-        # for next_done in asyncio.as_completed(tasks):
-        #     res = await next_done
-        #     breakpoint()
-        #     x= 1
 
 
 get_source = Source.get_source
