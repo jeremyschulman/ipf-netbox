@@ -55,13 +55,18 @@ Ensure Netbox has the same Sites as defined in IP Fabric.
 """,
 )
 @click.option(
-    "--filter", "filter_", help="IPF filter expression",
+    "--filter", "filters", help="IPF device inventory filter expression",
+)
+@click.option(
+    "--force-primary-ip",
+    is_flag=True,
+    help="When IP is already set, update IP if different",
 )
 @click.pass_context
-def cli_ensure_devices(ctx: click.Context, filter_: str):
+def cli_ensure_devices(ctx: click.Context, **task_options):
     group_params = ctx.parent.params
 
-    asyncio.run(ensure_devices(**group_params, filter_=filter_))
+    asyncio.run(ensure_devices(params=task_options, group_params=group_params))
 
 
 # -----------------------------------------------------------------------------

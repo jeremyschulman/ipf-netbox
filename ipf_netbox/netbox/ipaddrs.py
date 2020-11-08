@@ -61,12 +61,12 @@ class NetboxIPAddrCollection(Collector, IPAddrCollection):
                 )
                 return None
 
-            return asyncio.create_task(
-                api.post(
-                    url=_IPAM_ADDR_URL,
-                    json=dict(address=item["ipaddr"], interface=if_rec["id"]),
-                )
-            )
+            payload = dict(address=item["ipaddr"], interface=if_rec["id"])
+
+            if if_rec["name"].lower().startswith("loopback"):
+                payload["role"] = "loopback"
+
+            return asyncio.create_task(api.post(url=_IPAM_ADDR_URL, json=payload))
 
         await self.source.update(missing, callback, _create_task)
 

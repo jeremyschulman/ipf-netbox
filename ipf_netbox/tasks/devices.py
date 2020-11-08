@@ -12,7 +12,7 @@ from ipf_netbox.netbox.devices import NetboxDeviceCollection
 from ipf_netbox.ipfabric.devices import IPFabricDeviceCollection
 
 
-async def ensure_devices(dry_run, filter_):
+async def ensure_devices(params, group_params):
     """
     Ensure Netbox contains devices found IP Fabric in given Site
     """
@@ -24,14 +24,16 @@ async def ensure_devices(dry_run, filter_):
         source=ipf, name="devices"
     )
 
+    filters = params["filters"]
+
     async with ipf.client:
-        await ipf_col.fetch(filters=filter_)
+        await ipf_col.fetch(filters=filters)
         ipf_col.make_keys()
 
     print("OK", flush=True)
 
     if not len(ipf_col.inventory):
-        print(f"Done. No inventory matching filter:\n\t{filter_}")
+        print(f"Done. No inventory matching filter:\n\t{filters}")
         return
 
     print("Fetching inventory from Netbox ... ", flush=True, end="")
@@ -60,7 +62,7 @@ async def ensure_devices(dry_run, filter_):
 
     _report_proposed_changes(diff_res)
 
-    if dry_run:
+    if group_params["dry_run"] is True:
         return
 
     updates = list()
@@ -69,7 +71,7 @@ async def ensure_devices(dry_run, filter_):
         updates.append(_execute_create(ipf_col, netbox_col, diff_res.missing))
 
     if diff_res.changes:
-        updates.append(_execute_changes(ipf_col, netbox_col, diff_res.changes))
+        updates.append(_execute_changes(params, ipf_col, netbox_col, diff_res.changes))
 
     async with netbox_col.source.client, ipf_col.source.client as nb:
         nb.timeout = 60
@@ -96,7 +98,7 @@ def _report_proposed_changes(diff_res: DiffResults):
         )
 
     if diff_res.changes:
-        print("\nNetbox Device Updates Identified", end="\n\n")
+        print("\nDifferences:", end="\n")
         for sn, changes in diff_res.changes.items():
             fp = changes.fingerprint
             hostname = fp["hostname"]
@@ -258,8 +260,13 @@ async def _execute_create(
 
 
 async def _execute_changes(
-    ipf_col: IPFabricDeviceCollection, nb_col: NetboxDeviceCollection, changes
+    params: dict,
+    ipf_col: IPFabricDeviceCollection,
+    nb_col: NetboxDeviceCollection,
+    changes,
 ):
+    print("\nExaminging changes ... ", flush=True)
+
     def _report(item: Changes, _task):
         res: Response = _task.result()
         ident = f"device {item.fingerprint['hostname']}"
@@ -269,15 +276,31 @@ async def _execute_changes(
             else f"CHANGE:OK: {ident}"
         )
 
-    missing_ipaddrs = {
-        key: change.fields
-        for key, change in changes.items()
-        if "ipaddr" in change.fields
-    }
+    actual_changes = dict()
+    missing_pri_ip = dict()
 
-    if missing_ipaddrs:
+    for key, key_change in changes.items():
+
+        if (ipaddr := key_change.fields.pop("ipaddr", None)) is not None:
+            if any(
+                (
+                    key_change.fingerprint["ipaddr"] == "",
+                    (ipaddr and (params["force_primary_ip"] is True)),
+                )
+            ):
+                key_change.fields["ipaddr"] = ipaddr
+                missing_pri_ip[key] = key_change
+
+        if len(key_change.fields):
+            actual_changes[key] = key_change
+
+    if missing_pri_ip:
         await _ensure_primary_ipaddrs(
-            ipf_col=ipf_col, nb_col=nb_col, missing=missing_ipaddrs
+            ipf_col=ipf_col, nb_col=nb_col, missing=missing_pri_ip
         )
+
+    if not actual_changes:
+        print("No required changes.")
+        return
 
     await nb_col.update_changes(changes, callback=_report)
