@@ -14,7 +14,7 @@
 
 """
 This file contains the filtering functions that are using to process the '--include' and '--exclude' command line
-options.  The code in this module is not specific to the netcfgbu inventory column names, can could be re-used for other
+options.  The code in this module is not specific to the netcfgbu source_records column names, can could be re-used for other
 CSV related tools and use-cases.
 """
 
@@ -64,7 +64,7 @@ def create_filter(
     include: Optional[bool] = True,
 ) -> Callable[[Dict], bool]:
     """
-    This function returns a function that is used to filter inventory records.
+    This function returns a function that is used to filter source_records records.
 
     Parameters
     ----------
@@ -86,7 +86,7 @@ def create_filter(
 
     Returns
     -------
-    The returning filter function expects an inventory record as the single
+    The returning filter function expects an source_records record as the single
     input parameter, and the function returns True/False on match.
     """
     fieldn_pattern = "^(?P<keyword>" + "|".join(fieldn for fieldn in field_names) + ")"

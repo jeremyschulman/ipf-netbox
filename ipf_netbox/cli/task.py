@@ -46,7 +46,7 @@ def cli_ensure_sites(ctx: click.Context):
 \b
 Ensure Netbox has the same Sites as defined in IP Fabric.
 \b
---filter <expr> is used to select devices from IP Fabric inventory.
+--filter <expr> is used to select devices from IP Fabric source_records.
 \b
     Examples:
     --filter "siteName = atl"
@@ -55,7 +55,7 @@ Ensure Netbox has the same Sites as defined in IP Fabric.
 """,
 )
 @click.option(
-    "--filter", "filters", help="IPF device inventory filter expression",
+    "--filter", "filters", help="IPF device source_records filter expression",
 )
 @click.option(
     "--force-primary-ip",

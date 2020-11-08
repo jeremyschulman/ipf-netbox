@@ -36,7 +36,7 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
 
     async def fetch(self, **kwargs):
         """ exclude devices without a platform or primary-ip address """
-        self.inventory.extend(
+        self.source_records.extend(
             await self.source.client.paginate(
                 url=_DEVICES_URL, filters={"exclude": "config_context"},
             )
@@ -133,7 +133,7 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
             # in the create task function below.
 
             # ipaddr_list = [
-            #     (self.keys[key]['hostname'], item.fields['ipaddr'])
+            #     (self.inventory[key]['hostname'], item.fields['ipaddr'])
             #     for key, item in changes.items()
             #     if 'ipaddr' in item.fields
             # ]
@@ -149,7 +149,7 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
 
         kex_lkup = {
             rec["address"].split("/")[0]: rec
-            for rec in cached_ipaddrs.inventory_keys.values()
+            for rec in cached_ipaddrs.source_record_keys.values()
         }
 
         def _create_task(key, item: Changes):
@@ -167,7 +167,7 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
             if not len(patch_payload):
                 return None
 
-            dev_id = self.inventory_keys[key]["id"]
+            dev_id = self.source_record_keys[key]["id"]
 
             # Note: no slash between the base URL and the dev_id since the
             #       base url has a slash-suffix

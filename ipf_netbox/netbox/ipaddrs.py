@@ -15,7 +15,7 @@ class NetboxIPAddrCollection(Collector, IPAddrCollection):
     async def fetch(self, hostname, **params):
         """ fetch args are Netbox specific API parameters """
 
-        self.inventory.extend(
+        self.source_records.extend(
             await self.source.client.paginate(
                 url=_IPAM_ADDR_URL, filters=dict(device=hostname, **params)
             )

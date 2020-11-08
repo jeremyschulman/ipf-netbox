@@ -32,11 +32,11 @@ async def ensure_devices(params, group_params):
 
     print("OK", flush=True)
 
-    if not len(ipf_col.inventory):
-        print(f"Done. No inventory matching filter:\n\t{filters}")
+    if not len(ipf_col.source_records):
+        print(f"Done. No source_records matching filter:\n\t{filters}")
         return
 
-    print("Fetching inventory from Netbox ... ", flush=True, end="")
+    print("Fetching from Netbox ... ", flush=True, end="")
     netbox = get_source("netbox")
     netbox_col: NetboxDeviceCollection = get_collection(  # noqa
         source=netbox, name="devices"
@@ -52,7 +52,7 @@ async def ensure_devices(params, group_params):
         source_from=ipf_col,
         sync_to=netbox_col,
         fields_cmp={
-            "model": lambda f: True  # do not consider model for diff right now
+            "model": lambda f: True  # TODO: do not consider model for diff right now
         },
     )
 
@@ -110,7 +110,7 @@ def _report_proposed_changes(diff_res: DiffResults):
 
 
 async def _ensure_primary_ipaddrs(
-    ipf_col: IPFabricDeviceCollection, nb_col: NetboxDeviceCollection, missing
+    ipf_col: IPFabricDeviceCollection, nb_col: NetboxDeviceCollection, missing: dict
 ):
 
     ipf_col_ipaddrs = get_collection(source=ipf_col.source, name="ipaddrs")
@@ -130,7 +130,7 @@ async def _ensure_primary_ipaddrs(
             ipf_col_ipaddrs.fetch(
                 filters=f"and(hostname = {_item['hostname']}, ip = '{_item['loginIp']}')"
             )
-            for _item in [ipf_col.inventory_keys[key] for key in missing.keys()]
+            for _item in [ipf_col.source_record_keys[key] for key in missing.keys()]
         )
     )
 
@@ -146,7 +146,7 @@ async def _ensure_primary_ipaddrs(
             ipf_col_ifaces.fetch(
                 filters=f"and(hostname = {_item['hostname']}, intName = {_item['intName']})"
             )
-            for _item in ipf_col_ipaddrs.inventory_keys.values()
+            for _item in ipf_col_ipaddrs.source_record_keys.values()
         )
     )
 
@@ -162,8 +162,8 @@ async def _ensure_primary_ipaddrs(
     nb_col_ifaces = get_collection(source=nb_col.source, name="interfaces")
     nb_col_ipaddrs = get_collection(source=nb_col.source, name="ipaddrs")
 
-    await nb_col_ifaces.fetch_keys(keys=ipf_col_ifaces.keys)
-    await nb_col_ipaddrs.fetch_keys(keys=ipf_col_ipaddrs.keys)
+    await nb_col_ifaces.fetch_keys(keys=ipf_col_ifaces.inventory)
+    await nb_col_ipaddrs.fetch_keys(keys=ipf_col_ipaddrs.inventory)
 
     nb_col_ipaddrs.make_keys()
     nb_col_ifaces.make_keys()
@@ -179,7 +179,7 @@ async def _ensure_primary_ipaddrs(
             return
 
         print(f"CREATE:OK: interface {hname}, {iname}.")
-        nb_col_ifaces.inventory.append(_res.json())
+        nb_col_ifaces.source_records.append(_res.json())
 
     def _report_ipaddr(item, _task):
         _res = _task.result()
@@ -190,7 +190,7 @@ async def _ensure_primary_ipaddrs(
             print(f"CREATE:FAIL: {ident}: {_res.text}")
             return
 
-        nb_col_ipaddrs.inventory.append(_res.json())
+        nb_col_ipaddrs.source_records.append(_res.json())
         print(f"CREATE:OK: ipaddr {ident}.")
 
     if diff_ifaces:
@@ -216,7 +216,7 @@ async def _ensure_primary_ipaddrs(
 
 
 async def _execute_create(
-    ipf_col: IPFabricDeviceCollection, nb_col: NetboxDeviceCollection, missing
+    ipf_col: IPFabricDeviceCollection, nb_col: NetboxDeviceCollection, missing: dict
 ):
 
     # -------------------------------------------------------------------------
@@ -232,7 +232,7 @@ async def _execute_create(
             return
 
         print(f"CREATE:OK: device {item['hostname']} ... creating primary IP ... ")
-        nb_col.inventory.append(_res.json())
+        nb_col.source_records.append(_res.json())
 
     await nb_col.create_missing(missing=missing, callback=_report_device)
     await _ensure_primary_ipaddrs(ipf_col=ipf_col, nb_col=nb_col, missing=missing)
@@ -243,7 +243,9 @@ async def _execute_create(
     # -------------------------------------------------------------------------
 
     changes = {
-        key: Changes(fingerprint={}, fields={"ipaddr": ipf_col.keys[key]["ipaddr"]})
+        key: Changes(
+            fingerprint={}, fields={"ipaddr": ipf_col.inventory[key]["ipaddr"]}
+        )
         for key in missing.keys()
     }
 

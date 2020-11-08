@@ -18,7 +18,7 @@ async def ensure_ipaddrs(dry_run, filters):
         await ipf_col.fetch(filters=filters)
         ipf_col.make_keys()
 
-    if not len(ipf_col.inventory):
+    if not len(ipf_col.source_records):
         print(f"0 items matching filter: `{filters}`.")
         return
 
@@ -32,7 +32,7 @@ async def ensure_ipaddrs(dry_run, filters):
 
     nb_col = get_collection(source=get_source("netbox"), name="ipaddrs")
 
-    device_list = {rec["hostname"] for rec in ipf_col.keys.values()}
+    device_list = {rec["hostname"] for rec in ipf_col.inventory.values()}
     print(f"{len(device_list)} devices ... ", flush=True, end="")
 
     async with nb_col.source.client as api:

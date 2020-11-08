@@ -36,7 +36,7 @@ class NetboxInterfaceCollection(Collector, InterfaceCollection):
         fetch args are Netbox API specific.
         """
 
-        self.inventory.extend(
+        self.source_records.extend(
             await self.source.client.paginate(
                 url="/dcim/interfaces/", filters=dict(device=hostname, **params)
             )
@@ -104,7 +104,7 @@ class NetboxInterfaceCollection(Collector, InterfaceCollection):
         client = self.source.client
 
         def _create_task(key, item):
-            if_id = self.inventory_keys[key]["id"]
+            if_id = self.source_record_keys[key]["id"]
             return asyncio.create_task(
                 client.patch(
                     url=f"/dcim/interfaces/{if_id}/",

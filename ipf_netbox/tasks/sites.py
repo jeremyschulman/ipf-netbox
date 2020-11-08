@@ -73,7 +73,7 @@ async def _execute_changes(nb: NetboxClient, diff_res):
 def _dry_report(source_col, diff_res):
 
     tab_data = [
-        [key, ["Yes", "No"][key in diff_res.missing]] for key in source_col.keys
+        [key, ["Yes", "No"][key in diff_res.missing]] for key in source_col.inventory
     ]
     tab_data.sort(key=itemgetter(0))
 

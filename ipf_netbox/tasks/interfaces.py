@@ -36,7 +36,7 @@ async def ensure_interfaces(dry_run, filters):
 
     print("Fetching from Netbox ... ", flush=True, end="")
 
-    device_list = {rec["hostname"] for rec in ipf_col.keys.values()}
+    device_list = {rec["hostname"] for rec in ipf_col.inventory.values()}
     print(f"{len(device_list)} devices ... ", flush=True, end="")
 
     async with nb_col.source.client as api:
