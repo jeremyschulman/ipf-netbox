@@ -3,6 +3,6 @@ httpx
 aio-ipfabric
 tabulate
 pydantic
-pydantic_env
+pydantic-env
 toml
 uvloop
