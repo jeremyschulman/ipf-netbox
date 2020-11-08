@@ -184,7 +184,7 @@ async def _ensure_primary_ipaddrs(
             return
 
         nb_col_ipaddrs.source_records.append(_res.json())
-        print(f"CREATE:OK: ipaddr {ident}.")
+        print(f"CREATE:OK: {ident}.")
 
     if diff_ifaces:
         await nb_col_ifaces.create_missing(
