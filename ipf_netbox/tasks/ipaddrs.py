@@ -2,25 +2,46 @@ import asyncio
 
 from httpx import Response
 
-from ipf_netbox.collection import get_collection, Collector
+from ipf_netbox.collection import get_collection
 from ipf_netbox.diff import diff, DiffResults
 from ipf_netbox.tasks.tasktools import with_sources
+from ipf_netbox.ipfabric.ipaddrs import IPFabricIPAddrCollection
+from ipf_netbox.netbox.ipaddrs import NetboxIPAddrCollection
 
 
 @with_sources
-async def ensure_ipaddrs(ipf, nb, dry_run, filters):
-    print("Ensure Netbox contains IP addresses from IP Fabric")
+async def ensure_ipaddrs(ipf, nb, **params) -> IPFabricIPAddrCollection:
+    print("\nEnsure IP Address.")
 
     print("Fetching from IP Fabric ... ", flush=True, end="")
 
-    ipf_col = get_collection(source=ipf, name="ipaddrs")
+    ipf_col: IPFabricIPAddrCollection = get_collection(  # noqa
+        source=ipf, name="ipaddrs"
+    )
 
-    await ipf_col.fetch(filters=filters)
+    if (filters := params.get("filters")) is not None:
+        await ipf_col.fetch(filters=filters)
+
+    elif (ipf_col_ifaces := params.get("interfaces")) is not None:
+
+        device_list = {rec["hostname"] for rec in ipf_col_ifaces.inventory.values()}
+        print(f"{len(device_list)} devices ... ", flush=True, end="")
+
+        await asyncio.gather(
+            *(
+                ipf_col.fetch(filters=f"hostname = {hostname}")
+                for hostname in device_list
+            )
+        )
+
+    else:
+        raise RuntimeError("FAIL: No parameters to fetch ipaddrs")
+
     ipf_col.make_keys()
 
     if not len(ipf_col.source_records):
         print(f"0 items matching filter: `{filters}`.")
-        return
+        return ipf_col
 
     print(f"{len(ipf_col)} items.")
 
@@ -30,7 +51,7 @@ async def ensure_ipaddrs(ipf, nb, dry_run, filters):
 
     print("Fetching from Netbox ... ", flush=True, end="")
 
-    nb_col = get_collection(source=nb, name="ipaddrs")
+    nb_col: NetboxIPAddrCollection = get_collection(source=nb, name="ipaddrs")  # noqa
 
     device_list = {rec["hostname"] for rec in ipf_col.inventory.values()}
     print(f"{len(device_list)} devices ... ", flush=True, end="")
@@ -47,12 +68,12 @@ async def ensure_ipaddrs(ipf, nb, dry_run, filters):
 
     diff_res = diff(source_from=ipf_col, sync_to=nb_col)
     if not diff_res:
-        print("Done, no differences.")
+        print("No changes required.")
         return
 
     _diff_report(diff_res)
 
-    if dry_run:
+    if params.get("dry_run", False) is True:
         return
 
     tasks = list()
@@ -72,9 +93,9 @@ def _diff_report(diff_res: DiffResults):
     print("\n")
 
 
-async def _diff_update(nb_col: Collector, changes):
-    def _done(_key, _task):
-        res: Response = _task.result()
+async def _diff_update(nb_col: NetboxIPAddrCollection, changes):
+    def _done(_key, res: Response):
+        # res: Response = _task.result()
         _hostname, _ifname = _key
         res.raise_for_status()
         print(f"UPDATE:OK: ipaddr {_hostname}, {_ifname}", flush=True)
@@ -82,9 +103,8 @@ async def _diff_update(nb_col: Collector, changes):
     await nb_col.update_changes(changes=changes, callback=_done)
 
 
-async def _diff_create(nb_col: Collector, missing):
-    def _done(item, _task):
-        _res: Response = _task.result()
+async def _diff_create(nb_col: NetboxIPAddrCollection, missing):
+    def _done(item, _res: Response):
         _res.raise_for_status()
         print(
             f"CREATE:OK: ipaddr {item['hostname']}, {item['interface']}, {item['ipaddr']}",

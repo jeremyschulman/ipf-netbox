@@ -87,35 +87,39 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
 
         def _create_task(key, item):  # noqa
             model = item["model"]
-
-            if (dt_slug := config.maps["models"].get(model)) is None:
-                print(f"ERROR: no device-type mapping for model {model}, skipping.")
+            hostname = item["hostname"]
+            if (dt_slug := config.maps["models"].get(model, "")) == "":
+                print(
+                    f"ERROR: {hostname}, no device-type mapping for model {model}, skipping."
+                )
                 return None
 
             if (dt_id := device_types.get(dt_slug)) is None:
-                print(f"ERROR: no device-type for slug {dt_slug}, skipping.")
+                print(
+                    f"ERROR: {hostname}, no device-type for slug {dt_slug}, skipping."
+                )
                 return None
 
             if (site_id := sites.get(item["site"])) is None:
-                print(f"ERROR: missing site {item['site']}, skipping.")
+                print(f"ERROR: {hostname}, missing site {item['site']}, skipping.")
                 return None
 
             if (pl_id := platforms.get(item["os_name"])) is None:
-                print(f"ERROR: missing platform {item['os_name']}, skipping.")
+                print(
+                    f"ERROR: {hostname}, missing platform {item['os_name']}, skipping."
+                )
                 return None
 
-            return asyncio.create_task(
-                nb_api.post(
-                    url="/dcim/devices/",
-                    json={
-                        "name": item["hostname"],
-                        "serial": item["sn"],
-                        "device_role": role_unknwon,
-                        "platform": pl_id,
-                        "site": site_id,
-                        "device_type": dt_id,
-                    },
-                )
+            return nb_api.post(
+                url="/dcim/devices/",
+                json={
+                    "name": item["hostname"],
+                    "serial": item["sn"],
+                    "device_role": role_unknwon,
+                    "platform": pl_id,
+                    "site": site_id,
+                    "device_type": dt_id,
+                },
             )
 
         await self.source.update(missing, callback, _create_task)
@@ -172,9 +176,7 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
             # Note: no slash between the base URL and the dev_id since the
             #       base url has a slash-suffix
 
-            return asyncio.create_task(
-                api.patch(url=f"{_DEVICES_URL}{dev_id}/", json=patch_payload)
-            )
+            return api.patch(url=f"{_DEVICES_URL}{dev_id}/", json=patch_payload)
 
         await self.source.update(changes, callback, creator=_create_task)
 

@@ -1,0 +1,53 @@
+#
+# This file contains configuration for the IPF-NB toolkit CLI
+#
+
+[defaults]
+
+    # `domain_names`: if IPF stores device hostnames with FQDN, use this list to
+    # strip the domain-names before comparing hostname values with Netbox.
+
+    domain_names = [
+        'yourcorp.come'
+    ]
+
+[maps.interfaces]
+
+    # -------------------------------------------------------------------------
+    # map IP Fabric "short interface name" to "long interface name"
+    # -------------------------------------------------------------------------
+
+    "Et" = "Ethernet"
+    "Lo" = "Loopback"
+    "Vl" = "Vlan"
+    "Po" = "Port-Channel"
+    "Gi" = "GigabitEthernet"
+    "Te" = "TenGigabitEthernet"
+
+
+[maps.models]
+    # -------------------------------------------------------------------------
+    # map IP Fabric device `model` to Netbox `device-type slug`
+    # -------------------------------------------------------------------------
+
+    # Arista
+
+    "CCS-720XP-48ZC2-F" = "ccs-720xp-48zc2"
+    "DCS-7010T-48" = "dcs-7010t-48"
+    "DCS-7020SR-32C2-F" = "dcs-7020sr-32c2"
+    "DCS-7050CX3-32S-F" = "dcs-7050cx3-32s"
+    "DCS-7050SX3-48YC12-F" = "dcs-7050sx3-48yc12"
+    "DCS-7280CR2A-30-F" = "dcs-7280cr2a-30"
+    "DCS-7280SR2K-48C6-M-F" = "dcs-7280sr2-48yc6"
+
+    # Cisco ASA
+
+    "FPR-2140" = "fpr2140-ngfw-k9"
+    "5515" = "asa5515x-k8"
+    "5585-SSP-20" = "asa5585-x"
+
+    # Cisco ASR
+
+    "ASR1002-HX" = "asr1002-hx"
+    "ASR-9001" = ""
+
