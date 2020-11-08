@@ -30,12 +30,23 @@ __all__ = ["NetboxInterfaceCollection"]
 class NetboxInterfaceCollection(Collector, InterfaceCollection):
     source_class = NetboxSource
 
-    async def fetch(self, hostname):
-        """ fetch interfaces must be done on a per-device (hostname) basis """
+    async def fetch(self, hostname, **params):
+        """
+        fetch interfaces must be done on a per-device (hostname) basis.
+        fetch args are Netbox API specific.
+        """
 
         self.inventory.extend(
             await self.source.client.paginate(
-                url="/dcim/interfaces/", filters={"device": hostname}
+                url="/dcim/interfaces/", filters=dict(device=hostname, **params)
+            )
+        )
+
+    async def fetch_keys(self, keys: Dict):
+        await asyncio.gather(
+            *(
+                self.fetch(hostname=rec["hostname"], name=rec["interface"])
+                for rec in keys.values()
             )
         )
 

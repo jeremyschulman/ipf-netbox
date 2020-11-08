@@ -18,20 +18,23 @@ class CollectionMixin(object):
     KEY_FIELDS = None
 
     async def fetch(self, **fetch_args):
-        pass
+        raise RuntimeError("Not implemented")
+
+    async def fetch_keys(self, keys: Dict):
+        raise RuntimeError("Not implemented")
 
     def fingerprint(self, rec: Dict) -> Dict:
-        pass
+        raise RuntimeError("Not implemented")
 
     async def create_missing(
         self, missing: Dict, callback: Optional[CollectionCallback] = None
     ):
-        pass
+        raise RuntimeError("Not implemented")
 
     async def update_changes(
         self, changes: Dict, callback: Optional[CollectionCallback] = None
     ):
-        pass
+        raise RuntimeError("Not implemented")
 
 
 class Collector(ABC, CollectionMixin):

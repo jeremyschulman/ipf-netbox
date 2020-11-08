@@ -129,6 +129,17 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
         # ensure that the 'ipaddrs' Collection is in the cache.
 
         if (cached_ipaddrs := self.cache.get("ipaddrs")) is None:
+            # we need to fetch all ipaddrs from Netbox so that they can be processed
+            # in the create task function below.
+
+            # ipaddr_list = [
+            #     (self.keys[key]['hostname'], item.fields['ipaddr'])
+            #     for key, item in changes.items()
+            #     if 'ipaddr' in item.fields
+            # ]
+            #
+            # cached_ipaddrs = await self._ensure_ipaddrs(ipaddr_list)
+
             whoami = self.__class__.__name__
             print(f"SKIP: {whoami}.update_changes requires 'ipaddrs' in cache")
             return
@@ -136,7 +147,10 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
         # TODO: Hacking the cache to remove the pflen because the IP in the device
         #       record does not have that information from IPF.
 
-        kex_lkup = {ipaddr.split("/")[0]: ipaddr for ipaddr in cached_ipaddrs.keys}
+        kex_lkup = {
+            rec["address"].split("/")[0]: rec
+            for rec in cached_ipaddrs.inventory_keys.values()
+        }
 
         def _create_task(key, item: Changes):
             """ key is the seriali number """
@@ -144,11 +158,10 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
 
             if (ipaddr := item.fields.get("ipaddr")) is not None:
 
-                if (key_pflen := kex_lkup.get(ipaddr)) is None:
+                if (nb_rec := kex_lkup.get(ipaddr)) is None:
                     print(f"SKIP: ipaddr {ipaddr} not in device cache.")
                     return None
 
-                nb_rec = cached_ipaddrs.inventory_keys[key_pflen]
                 patch_payload["primary_ip4"] = nb_rec["id"]
 
             if not len(patch_payload):
@@ -164,3 +177,20 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
             )
 
         await self.source.update(changes, callback, creator=_create_task)
+
+    # async def _ensure_ipaddrs(self, ipaddr_list):
+    #     col_ipaddrs = get_collection(source=self.source, name='ipaddrs')
+    #
+    #     await asyncio.gather(*(col_ipaddrs.fetch(hostname=hostname, address=ipaddr)
+    #                            for hostname, ipaddr, in ipaddr_list))
+    #
+    #     col_ipaddrs.make_keys()
+    #
+    #     # if all ipaddrs were found in Netbox, then we can return the collection now.
+    #     # otherwise we will need to create
+    #     if len(col_ipaddrs) == len(ipaddr_list):
+    #         return col_ipaddrs
+    #
+    #     breakpoint()
+    #
+    #     return col_ipaddrs

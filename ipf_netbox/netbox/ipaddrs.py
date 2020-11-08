@@ -13,10 +13,19 @@ class NetboxIPAddrCollection(Collector, IPAddrCollection):
     source_class = NetboxSource
 
     async def fetch(self, hostname, **params):
-        """ must batch requests by device hostname """
+        """ fetch args are Netbox specific API parameters """
+
         self.inventory.extend(
             await self.source.client.paginate(
-                url=_IPAM_ADDR_URL, filters={"device": hostname}
+                url=_IPAM_ADDR_URL, filters=dict(device=hostname, **params)
+            )
+        )
+
+    async def fetch_keys(self, keys):
+        await asyncio.gather(
+            *(
+                self.fetch(hostname=rec["hostname"], address=rec["ipaddr"])
+                for rec in keys.values()
             )
         )
 

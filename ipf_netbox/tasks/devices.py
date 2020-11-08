@@ -2,6 +2,7 @@ import asyncio
 from operator import itemgetter
 
 from tabulate import tabulate
+from httpx import Response
 
 from ipf_netbox.source import get_source
 from ipf_netbox.collection import get_collection
@@ -19,9 +20,9 @@ async def ensure_devices(dry_run, filter_):
     print("Fetching from IP Fabric ... ", flush=True, end="")
 
     ipf = get_source("ipfabric")
-    ipf_col: IPFabricDeviceCollection = get_collection(
+    ipf_col: IPFabricDeviceCollection = get_collection(  # noqa
         source=ipf, name="devices"
-    )  # noqa
+    )
 
     async with ipf.client:
         await ipf_col.fetch(filters=filter_)
@@ -35,9 +36,9 @@ async def ensure_devices(dry_run, filter_):
 
     print("Fetching inventory from Netbox ... ", flush=True, end="")
     netbox = get_source("netbox")
-    netbox_col: NetboxDeviceCollection = get_collection(
+    netbox_col: NetboxDeviceCollection = get_collection(  # noqa
         source=netbox, name="devices"
-    )  # noqa
+    )
 
     async with netbox.client:
         await netbox_col.fetch()
@@ -68,7 +69,7 @@ async def ensure_devices(dry_run, filter_):
         updates.append(_execute_create(ipf_col, netbox_col, diff_res.missing))
 
     if diff_res.changes:
-        updates.append(_execute_changes(netbox_col, diff_res.changes))
+        updates.append(_execute_changes(ipf_col, netbox_col, diff_res.changes))
 
     async with netbox_col.source.client, ipf_col.source.client as nb:
         nb.timeout = 60
@@ -106,7 +107,7 @@ def _report_proposed_changes(diff_res: DiffResults):
             print(f"Device {hostname}: {kv_pairs}")
 
 
-async def _execute_create(
+async def _ensure_primary_ipaddrs(
     ipf_col: IPFabricDeviceCollection, nb_col: NetboxDeviceCollection, missing
 ):
 
@@ -150,22 +151,23 @@ async def _execute_create(
     ipf_col_ifaces.make_keys()
 
     # -------------------------------------------------------------------------
-    # Now create each of the device records.  Once the device records are
-    # created, then go back and add the primary interface and ipaddress values
-    # using the other collections.
+    # At this point we have the IPF collections for the needed 'interfaces' and
+    # 'ipaddrs'.  We need to ensure these same entities exist in the Netbox
+    # collections.  We will first attempt to find all the existing records in
+    # Netbox using the `fetch_keys` method.
     # -------------------------------------------------------------------------
 
     nb_col_ifaces = get_collection(source=nb_col.source, name="interfaces")
     nb_col_ipaddrs = get_collection(source=nb_col.source, name="ipaddrs")
 
-    def _report_device(item, _task):
-        _res = _task.result()
-        if _res.is_error:
-            print(f"FAIL: create device {item['hostname']}: {_res.text}")
-            return
+    await nb_col_ifaces.fetch_keys(keys=ipf_col_ifaces.keys)
+    await nb_col_ipaddrs.fetch_keys(keys=ipf_col_ipaddrs.keys)
 
-        print(f"CREATE:OK: device {item['hostname']} ... creating primary IP ... ")
-        nb_col.inventory.append(_res.json())
+    nb_col_ipaddrs.make_keys()
+    nb_col_ifaces.make_keys()
+
+    diff_ifaces = diff(source_from=ipf_col_ifaces, sync_to=nb_col_ifaces)
+    diff_ipaddrs = diff(source_from=ipf_col_ipaddrs, sync_to=nb_col_ipaddrs)
 
     def _report_iface(item, _task):
         _res = _task.result()
@@ -189,23 +191,15 @@ async def _execute_create(
         nb_col_ipaddrs.inventory.append(_res.json())
         print(f"CREATE:OK: ipaddr {ident}.")
 
-    await nb_col.create_missing(missing=missing, callback=_report_device)
+    if diff_ifaces:
+        await nb_col_ifaces.create_missing(
+            missing=diff_ifaces.missing, callback=_report_iface
+        )
 
-    # Using the collections for interfaces and ipaddrs, create the missing
-    # records using the IPF records as a basis, since we know these records do
-    # not exist in Netbox. (technically the IP addr might, but check that is a
-    # TODO)
-
-    await nb_col_ifaces.create_missing(
-        missing=ipf_col_ifaces.keys, callback=_report_iface
-    )
-    await nb_col_ipaddrs.create_missing(
-        missing=ipf_col_ipaddrs.keys, callback=_report_ipaddr
-    )
-
-    # -------------------------------------------------------------------------
-    # Finally, we need to set the device primary IP address
-    # -------------------------------------------------------------------------
+    if diff_ipaddrs:
+        await nb_col_ipaddrs.create_missing(
+            missing=diff_ipaddrs.missing, callback=_report_ipaddr
+        )
 
     nb_col.make_keys()
     nb_col_ifaces.make_keys()
@@ -218,7 +212,33 @@ async def _execute_create(
     nb_col.cache["interfaces"] = nb_col_ifaces
     nb_col.cache["ipaddrs"] = nb_col_ipaddrs
 
-    # for each of the missing device records perform a "change request" on the 'ipaddr' field.
+
+async def _execute_create(
+    ipf_col: IPFabricDeviceCollection, nb_col: NetboxDeviceCollection, missing
+):
+
+    # -------------------------------------------------------------------------
+    # Now create each of the device records.  Once the device records are
+    # created, then go back and add the primary interface and ipaddress values
+    # using the other collections.
+    # -------------------------------------------------------------------------
+
+    def _report_device(item, _task):
+        _res = _task.result()
+        if _res.is_error:
+            print(f"FAIL: create device {item['hostname']}: {_res.text}")
+            return
+
+        print(f"CREATE:OK: device {item['hostname']} ... creating primary IP ... ")
+        nb_col.inventory.append(_res.json())
+
+    await nb_col.create_missing(missing=missing, callback=_report_device)
+    await _ensure_primary_ipaddrs(ipf_col=ipf_col, nb_col=nb_col, missing=missing)
+
+    # -------------------------------------------------------------------------
+    # for each of the missing device records perform a "change request" on the
+    # 'ipaddr' field. so that the primary IP will be assigned.
+    # -------------------------------------------------------------------------
 
     changes = {
         key: Changes(fingerprint={}, fields={"ipaddr": ipf_col.keys[key]["ipaddr"]})
@@ -237,5 +257,27 @@ async def _execute_create(
     await nb_col.update_changes(changes, callback=_report_primary)
 
 
-async def _execute_changes(nb_col, changes):
-    print("\nPROCESS DEVICE CHANGES: WORK IN PROGRESS\n\n")
+async def _execute_changes(
+    ipf_col: IPFabricDeviceCollection, nb_col: NetboxDeviceCollection, changes
+):
+    def _report(item: Changes, _task):
+        res: Response = _task.result()
+        ident = f"device {item.fingerprint['hostname']}"
+        print(
+            f"CHANGE:FAIL: {ident}, {res.text}"
+            if res.is_error
+            else f"CHANGE:OK: {ident}"
+        )
+
+    missing_ipaddrs = {
+        key: change.fields
+        for key, change in changes.items()
+        if "ipaddr" in change.fields
+    }
+
+    if missing_ipaddrs:
+        await _ensure_primary_ipaddrs(
+            ipf_col=ipf_col, nb_col=nb_col, missing=missing_ipaddrs
+        )
+
+    await nb_col.update_changes(changes, callback=_report)

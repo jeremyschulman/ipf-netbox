@@ -16,4 +16,7 @@ class IPAddrCollection(CollectionMixin):
 
     FINGERPRINT_FIELDS = ("ipaddr", "interface", "hostname")
 
-    KEY_FIELDS = ("ipaddr",)
+    KEY_FIELDS = (
+        "hostname",
+        "ipaddr",
+    )
