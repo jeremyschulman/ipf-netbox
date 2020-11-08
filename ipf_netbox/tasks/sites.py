@@ -4,37 +4,38 @@ from tabulate import tabulate
 from operator import itemgetter
 from httpx import Response
 
-from ipf_netbox.source import get_source
 from ipf_netbox.collection import get_collection
 from ipf_netbox.diff import diff
 from ipf_netbox.netbox.source import NetboxClient
+from ipf_netbox.tasks.tasktools import with_sources
 
 
-async def ensure_sites(dry_run):
+@with_sources
+async def ensure_sites(ipf, nb, dry_run):
     """
     Ensure Netbox contains the sites defined in IP Fabric
     """
-    print("Ensure Netbox contains the Sites defined in IP Fabric", flush=True)
-    print("Fetching source data, please wait ... ", flush=True, end="")
+    print("Ensure Netbox contains the Sites defined in IP Fabric")
+    print("Fetching from IP Fabric and Netbox ... ")
 
-    source_ipf = get_source("ipfabric")
-    source_netbox = get_source("netbox")
+    source_ipf = ipf
+    source_netbox = nb
 
     col_ipf = get_collection(source=source_ipf, name="sites")
     col_netbox = get_collection(source=source_netbox, name="sites")
 
-    async with col_netbox.source.client, col_ipf.source.client:
-        await asyncio.gather(col_ipf.fetch(), col_netbox.fetch())
+    await asyncio.gather(col_ipf.fetch(), col_netbox.fetch())
 
     col_ipf.make_keys()
     col_netbox.make_keys()
 
-    print("OK")
+    print(f"IP Fabric {len(col_ipf)} items.")
+    print(f"Netbox {len(col_netbox)} items.")
 
     diff_res = diff(source_from=col_ipf, sync_to=col_netbox)
 
     if diff_res is None:
-        print("Done.  No changes required.")
+        print("No changes required.")
         return
 
     _dry_report(source_col=col_ipf, diff_res=diff_res)
@@ -42,8 +43,7 @@ async def ensure_sites(dry_run):
     if dry_run:
         return
 
-    async with col_netbox.source.client:
-        await _execute_changes(nb=source_netbox.client, diff_res=diff_res)
+    await _execute_changes(nb=source_netbox.client, diff_res=diff_res)
 
 
 async def _execute_changes(nb: NetboxClient, diff_res):

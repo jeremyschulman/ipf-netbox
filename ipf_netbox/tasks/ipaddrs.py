@@ -2,21 +2,21 @@ import asyncio
 
 from httpx import Response
 
-from ipf_netbox.source import get_source
 from ipf_netbox.collection import get_collection, Collector
 from ipf_netbox.diff import diff, DiffResults
+from ipf_netbox.tasks.tasktools import with_sources
 
 
-async def ensure_ipaddrs(dry_run, filters):
+@with_sources
+async def ensure_ipaddrs(ipf, nb, dry_run, filters):
     print("Ensure Netbox contains IP addresses from IP Fabric")
 
     print("Fetching from IP Fabric ... ", flush=True, end="")
 
-    ipf_col = get_collection(source=get_source("ipfabric"), name="ipaddrs")
+    ipf_col = get_collection(source=ipf, name="ipaddrs")
 
-    async with ipf_col.source.client:
-        await ipf_col.fetch(filters=filters)
-        ipf_col.make_keys()
+    await ipf_col.fetch(filters=filters)
+    ipf_col.make_keys()
 
     if not len(ipf_col.source_records):
         print(f"0 items matching filter: `{filters}`.")
@@ -30,16 +30,13 @@ async def ensure_ipaddrs(dry_run, filters):
 
     print("Fetching from Netbox ... ", flush=True, end="")
 
-    nb_col = get_collection(source=get_source("netbox"), name="ipaddrs")
+    nb_col = get_collection(source=nb, name="ipaddrs")
 
     device_list = {rec["hostname"] for rec in ipf_col.inventory.values()}
     print(f"{len(device_list)} devices ... ", flush=True, end="")
 
-    async with nb_col.source.client as api:
-        api.timeout = 120
-        await asyncio.gather(
-            *(nb_col.fetch(hostname=hostname) for hostname in device_list)
-        )
+    nb.client.timeout = 120
+    await asyncio.gather(*(nb_col.fetch(hostname=hostname) for hostname in device_list))
 
     nb_col.make_keys()
     print(f"{len(nb_col)} items.", flush=True)
@@ -65,8 +62,7 @@ async def ensure_ipaddrs(dry_run, filters):
     if diff_res.changes:
         tasks.append(_diff_update(nb_col, diff_res.changes))
 
-    async with nb_col.source.client:
-        await asyncio.gather(*tasks)
+    await asyncio.gather(*tasks)
 
 
 def _diff_report(diff_res: DiffResults):
