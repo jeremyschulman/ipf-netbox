@@ -87,21 +87,27 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
 
         def _create_task(key, item):  # noqa
             model = item["model"]
-
-            if (dt_slug := config.maps["models"].get(model)) is None:
-                print(f"ERROR: no device-type mapping for model {model}, skipping.")
+            hostname = item["hostname"]
+            if (dt_slug := config.maps["models"].get(model, "")) == "":
+                print(
+                    f"ERROR: {hostname}, no device-type mapping for model {model}, skipping."
+                )
                 return None
 
             if (dt_id := device_types.get(dt_slug)) is None:
-                print(f"ERROR: no device-type for slug {dt_slug}, skipping.")
+                print(
+                    f"ERROR: {hostname}, no device-type for slug {dt_slug}, skipping."
+                )
                 return None
 
             if (site_id := sites.get(item["site"])) is None:
-                print(f"ERROR: missing site {item['site']}, skipping.")
+                print(f"ERROR: {hostname}, missing site {item['site']}, skipping.")
                 return None
 
             if (pl_id := platforms.get(item["os_name"])) is None:
-                print(f"ERROR: missing platform {item['os_name']}, skipping.")
+                print(
+                    f"ERROR: {hostname}, missing platform {item['os_name']}, skipping."
+                )
                 return None
 
             return asyncio.create_task(

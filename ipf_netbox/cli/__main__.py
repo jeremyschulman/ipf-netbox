@@ -46,5 +46,6 @@ def script():
     except httpx.HTTPStatusError as exc:
         print(f"FAIL: HTTP error {exc.response.text}")
 
-    except httpx.ReadTimeout as exc:
+    except (httpx.ReadTimeout, httpx.PoolTimeout) as exc:
         print(f"FAIL: HTTP read timeout on URL: {exc.request.url}")
+        print(f"BODY: {exc.request.stream._body}")
