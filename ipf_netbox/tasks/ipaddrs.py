@@ -75,8 +75,8 @@ def _diff_report(diff_res: DiffResults):
 
 
 async def _diff_update(nb_col: Collector, changes):
-    def _done(_key, _task):
-        res: Response = _task.result()
+    def _done(_key, res: Response):
+        # res: Response = _task.result()
         _hostname, _ifname = _key
         res.raise_for_status()
         print(f"UPDATE:OK: ipaddr {_hostname}, {_ifname}", flush=True)
@@ -85,8 +85,7 @@ async def _diff_update(nb_col: Collector, changes):
 
 
 async def _diff_create(nb_col: Collector, missing):
-    def _done(item, _task):
-        _res: Response = _task.result()
+    def _done(item, _res: Response):
         _res.raise_for_status()
         print(
             f"CREATE:OK: ipaddr {item['hostname']}, {item['interface']}, {item['ipaddr']}",

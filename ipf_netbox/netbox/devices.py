@@ -110,18 +110,16 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
                 )
                 return None
 
-            return asyncio.create_task(
-                nb_api.post(
-                    url="/dcim/devices/",
-                    json={
-                        "name": item["hostname"],
-                        "serial": item["sn"],
-                        "device_role": role_unknwon,
-                        "platform": pl_id,
-                        "site": site_id,
-                        "device_type": dt_id,
-                    },
-                )
+            return nb_api.post(
+                url="/dcim/devices/",
+                json={
+                    "name": item["hostname"],
+                    "serial": item["sn"],
+                    "device_role": role_unknwon,
+                    "platform": pl_id,
+                    "site": site_id,
+                    "device_type": dt_id,
+                },
             )
 
         await self.source.update(missing, callback, _create_task)
@@ -178,9 +176,7 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
             # Note: no slash between the base URL and the dev_id since the
             #       base url has a slash-suffix
 
-            return asyncio.create_task(
-                api.patch(url=f"{_DEVICES_URL}{dev_id}/", json=patch_payload)
-            )
+            return api.patch(url=f"{_DEVICES_URL}{dev_id}/", json=patch_payload)
 
         await self.source.update(changes, callback, creator=_create_task)
 

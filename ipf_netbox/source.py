@@ -1,5 +1,7 @@
-import asyncio
 from abc import ABC
+
+from .igather import igather
+
 
 __all__ = ["Source", "get_source"]
 
@@ -30,13 +32,22 @@ class Source(ABC):
         callback = callback or (lambda _k, _t: True)
 
         for key, item in updates.items():
-            if (task := creator(key, item)) is None:
+            if (coro := creator(key, item)) is None:
                 continue
 
-            tasks[task] = item
-            task.add_done_callback(lambda _t: callback(tasks[_t], _t))
+            tasks[coro] = item
+            # task = asyncio.create_task(coro)
+            # tasks[task] = item
+            # task.add_done_callback(lambda _t: callback(tasks[_t], _t))
 
-        await asyncio.gather(*tasks)
+        async for orig_coro, res in igather(tasks, limit=100):
+            item = tasks[orig_coro]
+            callback(item, res)
+
+        # for next_done in asyncio.as_completed(tasks):
+        #     res = await next_done
+        #     breakpoint()
+        #     x= 1
 
 
 get_source = Source.get_source

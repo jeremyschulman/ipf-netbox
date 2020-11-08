@@ -80,8 +80,8 @@ def _diff_report(diff_res):
 async def _diff_create(nb_col, missing):
     fields_fn = itemgetter("hostname", "interface")
 
-    def _done(item, task):
-        _res: Response = task.result()
+    def _done(item, _res: Response):
+        # _res: Response = task.result()
         _res.raise_for_status()
         _hostname, _if_name = fields_fn(item)
         print(f"CREATE:OK: interface {_hostname}, {_if_name}", flush=True)
@@ -92,8 +92,8 @@ async def _diff_create(nb_col, missing):
 async def _diff_update(nb_col: Collector, changes):
     fields_fn = itemgetter("hostname", "interface")
 
-    def _done(change, task):
-        res: Response = task.result()
+    def _done(change, res: Response):
+        # res: Response = task.result()
         _hostname, _ifname = fields_fn(change.fingerprint)
         res.raise_for_status()
         print(f"CHANGE:OK: interface {_hostname}, {_ifname}", flush=True)

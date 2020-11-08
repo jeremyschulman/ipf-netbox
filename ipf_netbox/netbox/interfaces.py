@@ -79,16 +79,14 @@ class NetboxInterfaceCollection(Collector, InterfaceCollection):
                 "virtual" if if_name.lower().startswith(("l", "v", "p")) else "other"
             )
 
-            return asyncio.create_task(
-                client.post(
-                    url="/dcim/interfaces/",
-                    json=dict(
-                        device=device_records[hostname]["id"],
-                        name=if_name,
-                        description=item["description"],
-                        type=if_type,
-                    ),
-                )
+            return client.post(
+                url="/dcim/interfaces/",
+                json=dict(
+                    device=device_records[hostname]["id"],
+                    name=if_name,
+                    description=item["description"],
+                    type=if_type,
+                ),
             )
 
         await self.source.update(
@@ -105,11 +103,9 @@ class NetboxInterfaceCollection(Collector, InterfaceCollection):
 
         def _create_task(key, item):
             if_id = self.source_record_keys[key]["id"]
-            return asyncio.create_task(
-                client.patch(
-                    url=f"/dcim/interfaces/{if_id}/",
-                    json=dict(description=item.fields["description"]),
-                )
+            return client.patch(
+                url=f"/dcim/interfaces/{if_id}/",
+                json=dict(description=item.fields["description"]),
             )
 
         await self.source.update(changes, callback, _create_task)

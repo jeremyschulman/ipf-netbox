@@ -166,8 +166,7 @@ async def _ensure_primary_ipaddrs(
     diff_ifaces = diff(source_from=ipf_col_ifaces, sync_to=nb_col_ifaces)
     diff_ipaddrs = diff(source_from=ipf_col_ipaddrs, sync_to=nb_col_ipaddrs)
 
-    def _report_iface(item, _task):
-        _res = _task.result()
+    def _report_iface(item, _res: Response):
         hname, iname = item["hostname"], item["interface"]
         if _res.is_error:
             print(f"CREATE:FAIL: interface {hname}, {iname}: {_res.text}")
@@ -176,8 +175,7 @@ async def _ensure_primary_ipaddrs(
         print(f"CREATE:OK: interface {hname}, {iname}.")
         nb_col_ifaces.source_records.append(_res.json())
 
-    def _report_ipaddr(item, _task):
-        _res = _task.result()
+    def _report_ipaddr(item, _res: Response):
         hname, iname, ipaddr = item["hostname"], item["interface"], item["ipaddr"]
         ident = f"ipaddr {hname}, {iname}, {ipaddr}"
 
@@ -220,8 +218,7 @@ async def _execute_create(
     # using the other collections.
     # -------------------------------------------------------------------------
 
-    def _report_device(item, _task):
-        _res = _task.result()
+    def _report_device(item, _res: Response):
         if _res.is_error:
             print(f"FAIL: create device {item['hostname']}: {_res.text}")
             return
@@ -239,14 +236,15 @@ async def _execute_create(
 
     changes = {
         key: Changes(
-            fingerprint={}, fields={"ipaddr": ipf_col.inventory[key]["ipaddr"]}
+            fingerprint=ipf_col.inventory[key],
+            fields={"ipaddr": ipf_col.inventory[key]["ipaddr"]},
         )
         for key in missing.keys()
     }
 
-    def _report_primary(item, _task):  # noqa
-        _res = _task.result()
-        ident = "device primary-ip4"
+    def _report_primary(item, _res):  # noqa
+        rec = item.fingerprint
+        ident = f"device {rec['hostname']} assigned primary-ip4"
         if _res.is_error:
             print(f"CREATE:FAIL: {ident}: {_res.text}")
             return
@@ -264,8 +262,8 @@ async def _execute_changes(
 ):
     print("\nExaminging changes ... ", flush=True)
 
-    def _report(item: Changes, _task):
-        res: Response = _task.result()
+    def _report(item: Changes, res: Response):
+        # res: Response = _task.result()
         ident = f"device {item.fingerprint['hostname']}"
         print(
             f"CHANGE:FAIL: {ident}, {res.text}"
