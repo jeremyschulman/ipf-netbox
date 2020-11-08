@@ -102,6 +102,8 @@ def _report_proposed_changes(diff_res: DiffResults):
             )
             print(f"Device {hostname}: {kv_pairs}")
 
+    print("\n")
+
 
 async def _ensure_primary_ipaddrs(
     ipf_col: IPFabricDeviceCollection, nb_col: NetboxDeviceCollection, missing: dict

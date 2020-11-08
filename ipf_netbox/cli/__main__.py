@@ -3,7 +3,7 @@ import os
 
 import click
 import httpx
-
+import uvloop
 
 from ipf_netbox.config import load_config_file
 from ipf_netbox import consts
@@ -34,6 +34,8 @@ def test():
 
 
 def script():
+    uvloop.install()
+
     try:
         cli()
     except httpx.HTTPStatusError as exc:
