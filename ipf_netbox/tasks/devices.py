@@ -4,47 +4,43 @@ from operator import itemgetter
 from tabulate import tabulate
 from httpx import Response
 
-from ipf_netbox.source import get_source
 from ipf_netbox.collection import get_collection
 from ipf_netbox.diff import diff, DiffResults, Changes
-
 from ipf_netbox.netbox.devices import NetboxDeviceCollection
 from ipf_netbox.ipfabric.devices import IPFabricDeviceCollection
+from ipf_netbox.tasks.tasktools import with_sources
 
 
-async def ensure_devices(params, group_params):
+@with_sources
+async def ensure_devices(ipf, netbox, params, group_params):
     """
     Ensure Netbox contains devices found IP Fabric in given Site
     """
     print("Ensure Netbox contains devices")
     print("Fetching from IP Fabric ... ", flush=True, end="")
 
-    ipf = get_source("ipfabric")
     ipf_col: IPFabricDeviceCollection = get_collection(  # noqa
         source=ipf, name="devices"
     )
 
     filters = params["filters"]
 
-    async with ipf.client:
-        await ipf_col.fetch(filters=filters)
-        ipf_col.make_keys()
+    await ipf_col.fetch(filters=filters)
+    ipf_col.make_keys()
 
     print("OK", flush=True)
 
-    if not len(ipf_col.inventory):
-        print(f"Done. No inventory matching filter:\n\t{filters}")
+    if not len(ipf_col.source_records):
+        print(f"Done. No source_records matching filter:\n\t{filters}")
         return
 
-    print("Fetching inventory from Netbox ... ", flush=True, end="")
-    netbox = get_source("netbox")
+    print("Fetching from Netbox ... ", flush=True, end="")
     netbox_col: NetboxDeviceCollection = get_collection(  # noqa
         source=netbox, name="devices"
     )
 
-    async with netbox.client:
-        await netbox_col.fetch()
-        netbox_col.make_keys()
+    await netbox_col.fetch()
+    netbox_col.make_keys()
 
     print("OK", flush=True)
 
@@ -52,7 +48,7 @@ async def ensure_devices(params, group_params):
         source_from=ipf_col,
         sync_to=netbox_col,
         fields_cmp={
-            "model": lambda f: True  # do not consider model for diff right now
+            "model": lambda f: True  # TODO: do not consider model for diff right now
         },
     )
 
@@ -73,9 +69,7 @@ async def ensure_devices(params, group_params):
     if diff_res.changes:
         updates.append(_execute_changes(params, ipf_col, netbox_col, diff_res.changes))
 
-    async with netbox_col.source.client, ipf_col.source.client as nb:
-        nb.timeout = 60
-        await asyncio.gather(*updates)
+    await asyncio.gather(*updates)
 
 
 def _report_proposed_changes(diff_res: DiffResults):
@@ -110,7 +104,7 @@ def _report_proposed_changes(diff_res: DiffResults):
 
 
 async def _ensure_primary_ipaddrs(
-    ipf_col: IPFabricDeviceCollection, nb_col: NetboxDeviceCollection, missing
+    ipf_col: IPFabricDeviceCollection, nb_col: NetboxDeviceCollection, missing: dict
 ):
 
     ipf_col_ipaddrs = get_collection(source=ipf_col.source, name="ipaddrs")
@@ -130,7 +124,7 @@ async def _ensure_primary_ipaddrs(
             ipf_col_ipaddrs.fetch(
                 filters=f"and(hostname = {_item['hostname']}, ip = '{_item['loginIp']}')"
             )
-            for _item in [ipf_col.inventory_keys[key] for key in missing.keys()]
+            for _item in [ipf_col.source_record_keys[key] for key in missing.keys()]
         )
     )
 
@@ -146,7 +140,7 @@ async def _ensure_primary_ipaddrs(
             ipf_col_ifaces.fetch(
                 filters=f"and(hostname = {_item['hostname']}, intName = {_item['intName']})"
             )
-            for _item in ipf_col_ipaddrs.inventory_keys.values()
+            for _item in ipf_col_ipaddrs.source_record_keys.values()
         )
     )
 
@@ -162,8 +156,8 @@ async def _ensure_primary_ipaddrs(
     nb_col_ifaces = get_collection(source=nb_col.source, name="interfaces")
     nb_col_ipaddrs = get_collection(source=nb_col.source, name="ipaddrs")
 
-    await nb_col_ifaces.fetch_keys(keys=ipf_col_ifaces.keys)
-    await nb_col_ipaddrs.fetch_keys(keys=ipf_col_ipaddrs.keys)
+    await nb_col_ifaces.fetch_keys(keys=ipf_col_ifaces.inventory)
+    await nb_col_ipaddrs.fetch_keys(keys=ipf_col_ipaddrs.inventory)
 
     nb_col_ipaddrs.make_keys()
     nb_col_ifaces.make_keys()
@@ -179,7 +173,7 @@ async def _ensure_primary_ipaddrs(
             return
 
         print(f"CREATE:OK: interface {hname}, {iname}.")
-        nb_col_ifaces.inventory.append(_res.json())
+        nb_col_ifaces.source_records.append(_res.json())
 
     def _report_ipaddr(item, _task):
         _res = _task.result()
@@ -190,7 +184,7 @@ async def _ensure_primary_ipaddrs(
             print(f"CREATE:FAIL: {ident}: {_res.text}")
             return
 
-        nb_col_ipaddrs.inventory.append(_res.json())
+        nb_col_ipaddrs.source_records.append(_res.json())
         print(f"CREATE:OK: ipaddr {ident}.")
 
     if diff_ifaces:
@@ -216,7 +210,7 @@ async def _ensure_primary_ipaddrs(
 
 
 async def _execute_create(
-    ipf_col: IPFabricDeviceCollection, nb_col: NetboxDeviceCollection, missing
+    ipf_col: IPFabricDeviceCollection, nb_col: NetboxDeviceCollection, missing: dict
 ):
 
     # -------------------------------------------------------------------------
@@ -232,7 +226,7 @@ async def _execute_create(
             return
 
         print(f"CREATE:OK: device {item['hostname']} ... creating primary IP ... ")
-        nb_col.inventory.append(_res.json())
+        nb_col.source_records.append(_res.json())
 
     await nb_col.create_missing(missing=missing, callback=_report_device)
     await _ensure_primary_ipaddrs(ipf_col=ipf_col, nb_col=nb_col, missing=missing)
@@ -243,7 +237,9 @@ async def _execute_create(
     # -------------------------------------------------------------------------
 
     changes = {
-        key: Changes(fingerprint={}, fields={"ipaddr": ipf_col.keys[key]["ipaddr"]})
+        key: Changes(
+            fingerprint={}, fields={"ipaddr": ipf_col.inventory[key]["ipaddr"]}
+        )
         for key in missing.keys()
     }
 

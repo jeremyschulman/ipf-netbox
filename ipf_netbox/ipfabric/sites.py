@@ -11,7 +11,7 @@ class IPFabricSiteCollection(Collector, SiteCollection):
 
     async def fetch(self):
         ipf = self.source.client
-        self.inventory.extend(
+        self.source_records.extend(
             await ipf.fetch_table(url="tables/inventory/sites", columns=["siteName"])
         )
 

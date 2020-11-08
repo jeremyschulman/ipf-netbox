@@ -40,25 +40,25 @@ class CollectionMixin(object):
 class Collector(ABC, CollectionMixin):
     def __init__(self, source: Source):
 
-        # `inventory` is a list of recoreds as they are obtained from the
-        # source.  The structure each inventory record is specific to the
+        # `source_records` is a list of recoreds as they are obtained from the
+        # source.  The structure each source_records record is specific to the
         # source.  The inentory record is "fingerprinted" for collection fields;
-        # which in turn are used to create keys.
+        # which in turn are used to create inventory.
 
-        self.inventory: List[Any] = list()
+        self.source_records: List[Any] = list()
 
-        # `keys` is a dict where the key=<fp-key> and the value is the
-        # fingerprint record of the collection fields.
+        # `inventory` is a dict where the key=<fields-key> and the value is the
+        # fields-record of the source record.
 
-        self.keys: Dict[Tuple, Dict] = dict()
+        self.inventory: Dict[Tuple, Dict] = dict()
 
-        # `inventory_keys` is a dict key=<fingerprint-key>,
-        # value=<inventory_rec> that is used to cross reference the fp-key to a
-        # source specific record ID which is typically found in the source
-        # specific response record. The uid value is used when making updates to
-        # an exists record in the source.
+        # `source_record_keys` is a dict key=<fields-key>, value=<source-record>
+        # that is used to cross reference the fields-key to a source specific
+        # record ID which is typically found in the source specific response
+        # record. The uid value is used when making updates to an exists record
+        # in the source.
 
-        self.inventory_keys: Dict[Tuple, Any] = dict()
+        self.source_record_keys: Dict[Tuple, Any] = dict()
 
         # The Source instance providing connectivity for the Collection
         # processing.
@@ -79,7 +79,7 @@ class Collector(ABC, CollectionMixin):
         with_translate=None,
         with_inventory=None,
     ):
-        if not len(self.inventory):
+        if not len(self.source_records):
             get_logger().info(
                 f"Collection {self.name}:{self.source_class.__name__}: inventory empty."
             )
@@ -91,9 +91,9 @@ class Collector(ABC, CollectionMixin):
         kf_getter = itemgetter(*(fields or self.KEY_FIELDS))
 
         if not with_inventory:
-            self.keys.clear()
+            self.inventory.clear()
 
-        for rec in with_inventory or self.inventory:
+        for rec in with_inventory or self.source_records:
             try:
                 fp = self.fingerprint(rec)
                 if not with_filter(fp):
@@ -103,8 +103,8 @@ class Collector(ABC, CollectionMixin):
                 raise RuntimeError("Fingerprint failed", rec, exc)
 
             as_key = with_translate(kf_getter(fp))
-            self.keys[as_key] = fp
-            self.inventory_keys[as_key] = rec
+            self.inventory[as_key] = fp
+            self.source_record_keys[as_key] = rec
 
     @classmethod
     def get_collection(cls, source, name) -> "Collector":
@@ -131,7 +131,7 @@ class Collector(ABC, CollectionMixin):
         return c_cls(source=source)
 
     def __len__(self):
-        return len(self.inventory)
+        return len(self.source_records)
 
 
 get_collection = Collector.get_collection

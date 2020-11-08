@@ -36,7 +36,7 @@ class IPFabricDeviceCollection(Collector, DeviceCollection):
         if (filters := params.get("filters")) is not None:
             params["filters"] = parse_filter(filters)
 
-        self.inventory.extend(await self.source.client.fetch_devices(**params))
+        self.source_records.extend(await self.source.client.fetch_devices(**params))
 
     def fingerprint(self, rec: Dict) -> Dict:
         return dict(

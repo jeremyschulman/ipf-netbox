@@ -16,7 +16,7 @@ class IPFabricIPAddrCollection(Collector, IPAddrCollection):
         if (filters := params.get("filters")) is not None:
             params["filters"] = parse_filter(filters)
 
-        self.inventory.extend(
+        self.source_records.extend(
             await self.source.client.fetch_table(
                 url="tables/addressing/managed-devs",
                 columns=["hostname", "intName", "siteName", "ip", "net"],

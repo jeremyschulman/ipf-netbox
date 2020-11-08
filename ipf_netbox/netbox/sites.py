@@ -9,7 +9,7 @@ class NetboxSiteCollection(Collector, SiteCollection):
     source_class = NetboxSource
 
     async def fetch(self):
-        self.inventory.extend(await self.source.client.paginate(url="/dcim/sites"))
+        self.source_records.extend(await self.source.client.paginate(url="/dcim/sites"))
 
     def fingerprint(self, rec: Dict) -> Dict:
         return {"name": rec["slug"]}

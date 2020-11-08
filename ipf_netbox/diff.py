@@ -37,14 +37,14 @@ def diff(
         missing: Dict[Tuple]
         changes: List[Tuple[Dict, Dict]]
     """
-    sync_to_keys = set(sync_to.keys)
-    source_from_keys = set(source_from.keys)
+    sync_to_keys = set(sync_to.inventory)
+    source_from_keys = set(source_from.inventory)
 
     missing_keys = source_from_keys - sync_to_keys
     shared_keys = source_from_keys & sync_to_keys
 
-    # missing key dict; key=inventory-key, value=key-fingerprint
-    missing_key_items = {key: source_from.keys[key] for key in missing_keys}
+    # missing key dict; key=source_records-key, value=key-fingerprint
+    missing_key_items = {key: source_from.inventory[key] for key in missing_keys}
 
     changes = dict()
 
@@ -56,8 +56,8 @@ def diff(
             fields_cmp[field] = lambda f: f
 
     for key in shared_keys:
-        source_fp = source_from.keys[key]
-        sync_fp = sync_to.keys[key]
+        source_fp = source_from.inventory[key]
+        sync_fp = sync_to.inventory[key]
 
         item_changes = dict()
 

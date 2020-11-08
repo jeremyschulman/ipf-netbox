@@ -74,24 +74,24 @@ async def fetch():
     async with aiofiles.open(
         _CACHEDIR.joinpath(f"{source.source}.devices.json"), "w+"
     ) as ofile:
-        await ofile.write(json.dumps(source.inventory, indent=3))
+        await ofile.write(json.dumps(source.source_records, indent=3))
 
     async with aiofiles.open(
         _CACHEDIR.joinpath(f"{other.source}.devices.json"), "w+"
     ) as ofile:
-        await ofile.write(json.dumps(other.inventory, indent=3))
+        await ofile.write(json.dumps(other.source_records, indent=3))
 
 
 def reload():
-    source.inventory = json.load(
+    source.source_records = json.load(
         _CACHEDIR.joinpath(f"{source.source}.devices.json").open()
     )
-    other.inventory = json.load(
+    other.source_records = json.load(
         _CACHEDIR.joinpath(f"{other.source}.devices.json").open()
     )
 
 
-#    other.inventory = json.load(_CACHEDIR.joinpath("ipfabric.devices.json").open())
+#    other.source_records = json.load(_CACHEDIR.joinpath("ipfabric.devices.json").open())
 
 
 def run():
