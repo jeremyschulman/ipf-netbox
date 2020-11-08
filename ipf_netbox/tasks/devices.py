@@ -298,4 +298,6 @@ async def _execute_changes(
         print("No required changes.")
         return
 
+    print("Processing changes ... ")
     await nb_col.update_changes(changes, callback=_report)
+    print("Done.\n")
