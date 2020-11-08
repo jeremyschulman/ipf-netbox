@@ -9,8 +9,8 @@ def with_sources(coro):
         ipf_src = get_source("ipfabric")
 
         async with nb_src.client, ipf_src.client:
-            ipf_src.client.timeout = 60
-            nb_src.client.timeout = 60
+            ipf_src.client.timeout = 120
+            nb_src.client.timeout = 120
 
             await coro(ipf_src, nb_src, *vargs, **kwargs)
 

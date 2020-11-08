@@ -9,8 +9,8 @@ from ipf_netbox.tasks.tasktools import with_sources
 
 
 @with_sources
-async def ensure_interfaces(ipf, nb, dry_run, filters):
-    print("Ensure Netbox contains device interfaces from IP Fabric")
+async def ensure_interfaces(ipf, nb, **params):
+    print("\nEnsure Device Interfaces.")
 
     # -------------------------------------------------------------------------
     # Fetch from IP Fabric with the User provided filter expression.
@@ -20,6 +20,8 @@ async def ensure_interfaces(ipf, nb, dry_run, filters):
 
     ipf_col = get_collection(source=ipf, name="interfaces")
     nb_col = get_collection(source=nb, name="interfaces")
+
+    filters = params["filters"]
 
     await ipf_col.fetch(filters=filters)
     ipf_col.make_keys()
@@ -50,12 +52,12 @@ async def ensure_interfaces(ipf, nb, dry_run, filters):
 
     diff_res = diff(source_from=ipf_col, sync_to=nb_col)
     if not diff_res:
-        print("Done, no differences.")
+        print("No changes required.")
         return
 
     _diff_report(diff_res)
 
-    if dry_run:
+    if params.get("dry_run", False) is True:
         return
 
     tasks = list()

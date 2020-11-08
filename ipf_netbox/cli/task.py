@@ -55,7 +55,7 @@ Ensure Netbox has the same Sites as defined in IP Fabric.
 """,
 )
 @click.option(
-    "--filter", "filters", help="IPF device source_records filter expression",
+    "--filter", "filters", help="IPF device inventory filter expression",
 )
 @click.option(
     "--force-primary-ip",

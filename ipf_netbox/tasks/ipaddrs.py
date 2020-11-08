@@ -8,12 +8,14 @@ from ipf_netbox.tasks.tasktools import with_sources
 
 
 @with_sources
-async def ensure_ipaddrs(ipf, nb, dry_run, filters):
-    print("Ensure Netbox contains IP addresses from IP Fabric")
+async def ensure_ipaddrs(ipf, nb, **params):
+    print("\nEnsure IP Address.")
 
     print("Fetching from IP Fabric ... ", flush=True, end="")
 
     ipf_col = get_collection(source=ipf, name="ipaddrs")
+
+    filters = params["filters"]
 
     await ipf_col.fetch(filters=filters)
     ipf_col.make_keys()
@@ -47,12 +49,12 @@ async def ensure_ipaddrs(ipf, nb, dry_run, filters):
 
     diff_res = diff(source_from=ipf_col, sync_to=nb_col)
     if not diff_res:
-        print("Done, no differences.")
+        print("No changes required.")
         return
 
     _diff_report(diff_res)
 
-    if dry_run:
+    if params.get("dry_run", False) is True:
         return
 
     tasks = list()

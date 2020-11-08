@@ -4,6 +4,7 @@ import os
 import click
 import httpx
 import uvloop
+from parsimonious.exceptions import ParseError
 
 from ipf_netbox.config import load_config_file
 from ipf_netbox import consts
@@ -38,5 +39,12 @@ def script():
 
     try:
         cli()
+
+    except ParseError as exc:
+        print(f"FAIL: Invalid filter expression: '{exc.text}'")
+
     except httpx.HTTPStatusError as exc:
         print(f"FAIL: HTTP error {exc.response.text}")
+
+    except httpx.ReadTimeout as exc:
+        print(f"FAIL: HTTP read timeout on URL: {exc.request.url}")

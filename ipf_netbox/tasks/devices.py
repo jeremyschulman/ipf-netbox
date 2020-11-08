@@ -12,11 +12,11 @@ from ipf_netbox.tasks.tasktools import with_sources
 
 
 @with_sources
-async def ensure_devices(ipf, netbox, params, group_params):
+async def ensure_devices(ipf, netbox, **params):
     """
     Ensure Netbox contains devices found IP Fabric in given Site
     """
-    print("Ensure Netbox contains devices")
+    print("\nEnsure Devices.")
     print("Fetching from IP Fabric ... ", flush=True, end="")
 
     ipf_col: IPFabricDeviceCollection = get_collection(  # noqa
@@ -28,7 +28,7 @@ async def ensure_devices(ipf, netbox, params, group_params):
     await ipf_col.fetch(filters=filters)
     ipf_col.make_keys()
 
-    print("OK", flush=True)
+    print(f"{len(ipf_col)} items.", flush=True)
 
     if not len(ipf_col.source_records):
         print(f"Done. No source_records matching filter:\n\t{filters}")
@@ -42,7 +42,7 @@ async def ensure_devices(ipf, netbox, params, group_params):
     await netbox_col.fetch()
     netbox_col.make_keys()
 
-    print("OK", flush=True)
+    print(f"{len(netbox_col)} items.", flush=True)
 
     diff_res = diff(
         source_from=ipf_col,
@@ -53,12 +53,12 @@ async def ensure_devices(ipf, netbox, params, group_params):
     )
 
     if diff_res is None:
-        print("Done.  No changes required.")
+        print("No changes required.")
         return
 
     _report_proposed_changes(diff_res)
 
-    if group_params["dry_run"] is True:
+    if params.get("dry_run", False) is True:
         return
 
     updates = list()
@@ -88,7 +88,7 @@ def _report_proposed_changes(diff_res: DiffResults):
                 tabular_data=tabular_data,
                 headers=["Hostname", "Site", "IP address", "Vendor", "Model"],
             ),
-            end="\n",
+            end="\n\n",
         )
 
     if diff_res.changes:
@@ -101,8 +101,7 @@ def _report_proposed_changes(diff_res: DiffResults):
                 for k_, v_ in changes.fields.items()
             )
             print(f"Device {hostname}: {kv_pairs}")
-
-    print("\n")
+        print("\n")
 
 
 async def _ensure_primary_ipaddrs(
@@ -245,7 +244,7 @@ async def _execute_create(
         for key in missing.keys()
     }
 
-    def _report_primary(item, _task):
+    def _report_primary(item, _task):  # noqa
         _res = _task.result()
         ident = "device primary-ip4"
         if _res.is_error:
