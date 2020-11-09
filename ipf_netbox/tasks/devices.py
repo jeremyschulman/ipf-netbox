@@ -1,8 +1,21 @@
+# -----------------------------------------------------------------------------
+# System Imports
+# -----------------------------------------------------------------------------
+
 import asyncio
 from operator import itemgetter
+from typing import List
+
+# -----------------------------------------------------------------------------
+# Public Imports
+# -----------------------------------------------------------------------------
 
 from tabulate import tabulate
 from httpx import Response
+
+# -----------------------------------------------------------------------------
+# Private Imports
+# -----------------------------------------------------------------------------
 
 from ipf_netbox.collection import get_collection
 from ipf_netbox.diff import diff, DiffResults, Changes
@@ -11,10 +24,40 @@ from ipf_netbox.ipfabric.devices import IPFabricDeviceCollection
 from ipf_netbox.tasks.tasktools import with_sources
 
 
+# -----------------------------------------------------------------------------
+#
+#                                 CODE BEGINS
+#
+# -----------------------------------------------------------------------------
+
+
 @with_sources
-async def ensure_devices(ipf, netbox, **params) -> IPFabricDeviceCollection:
+async def ensure_devices(ipf, netbox, **params) -> List[str]:
     """
-    Ensure Netbox contains devices found IP Fabric in given Site
+    Ensure Netbox contains devices found IP Fabric.
+
+    Parameters
+    ----------
+    ipf: IPFabric Source instance
+    netbox: Netbox Source instance
+
+    Other Parameters
+    ----------------
+    dry_run: bool
+        Determines dry-run mode
+
+    devices: List[str]
+        List of device to use as basis for action
+
+    filters: str
+        The IPF device inventory filter expression to use
+        as basis for action.
+
+    Returns
+    -------
+    List[str]
+        The list of IPF device hostnames found in the IPF collection.  Can
+        be used as a basis for other collection activities.
     """
     print("\nEnsure Devices.")
     print("Fetching from IP Fabric ... ", flush=True, end="")
@@ -32,12 +75,15 @@ async def ensure_devices(ipf, netbox, **params) -> IPFabricDeviceCollection:
 
     if not len(ipf_col.source_records):
         print(f"Done. No source_records matching filter:\n\t{filters}")
-        return ipf_col
+        return []
 
     print("Fetching from Netbox ... ", flush=True, end="")
     netbox_col: NetboxDeviceCollection = get_collection(  # noqa
         source=netbox, name="devices"
     )
+
+    # create the IPF hostname specific device list for return purposes.
+    device_list = [rec["hostname"] for rec in ipf_col.source_records]
 
     await netbox_col.fetch()
     netbox_col.make_keys()
@@ -54,12 +100,12 @@ async def ensure_devices(ipf, netbox, **params) -> IPFabricDeviceCollection:
 
     if diff_res is None:
         print("No changes required.")
-        return ipf_col
+        return device_list
 
     _report_proposed_changes(diff_res)
 
     if params.get("dry_run", False) is True:
-        return ipf_col
+        return device_list
 
     updates = list()
 
@@ -71,7 +117,7 @@ async def ensure_devices(ipf, netbox, **params) -> IPFabricDeviceCollection:
 
     await asyncio.gather(*updates)
 
-    return ipf_col
+    return device_list
 
 
 def _report_proposed_changes(diff_res: DiffResults):

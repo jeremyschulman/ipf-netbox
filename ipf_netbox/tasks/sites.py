@@ -34,6 +34,8 @@ from ipf_netbox.ipfabric.sites import IPFabricSiteCollection
 async def ensure_sites(ipf, nb, dry_run):
     """
     Ensure Netbox contains the sites defined in IP Fabric
+
+
     """
     print("Ensure Netbox contains the Sites defined in IP Fabric")
     print("Fetching from IP Fabric and Netbox ... ")
