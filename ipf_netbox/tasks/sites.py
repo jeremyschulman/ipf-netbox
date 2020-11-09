@@ -1,13 +1,33 @@
+# -----------------------------------------------------------------------------
+# System Imports
+# -----------------------------------------------------------------------------
+
 import asyncio
 
-from tabulate import tabulate
-from operator import itemgetter
+# -----------------------------------------------------------------------------
+# Public Imports
+# -----------------------------------------------------------------------------
+
 from httpx import Response
+
+# -----------------------------------------------------------------------------
+# Private Imports
+# -----------------------------------------------------------------------------
 
 from ipf_netbox.collection import get_collection
 from ipf_netbox.diff import diff
-from ipf_netbox.netbox.source import NetboxClient
 from ipf_netbox.tasks.tasktools import with_sources
+from ipf_netbox.diff import DiffResults
+
+from ipf_netbox.netbox.sites import NetboxSiteCollection
+from ipf_netbox.ipfabric.sites import IPFabricSiteCollection
+
+
+# -----------------------------------------------------------------------------
+#
+#                                 CODE BEGINS
+#
+# -----------------------------------------------------------------------------
 
 
 @with_sources
@@ -18,63 +38,56 @@ async def ensure_sites(ipf, nb, dry_run):
     print("Ensure Netbox contains the Sites defined in IP Fabric")
     print("Fetching from IP Fabric and Netbox ... ")
 
-    source_ipf = ipf
-    source_netbox = nb
+    ipf_col_sites: IPFabricSiteCollection = get_collection(  # noqa
+        source=ipf, name="sites"
+    )
 
-    col_ipf = get_collection(source=source_ipf, name="sites")
-    col_netbox = get_collection(source=source_netbox, name="sites")
+    nb_col_sites: NetboxSiteCollection = get_collection(source=nb, name="sites")  # noqa
 
-    await asyncio.gather(col_ipf.fetch(), col_netbox.fetch())
+    await asyncio.gather(ipf_col_sites.fetch(), nb_col_sites.fetch())
 
-    col_ipf.make_keys()
-    col_netbox.make_keys()
+    ipf_col_sites.make_keys()
+    nb_col_sites.make_keys()
 
-    print(f"IP Fabric {len(col_ipf)} items.")
-    print(f"Netbox {len(col_netbox)} items.")
+    print(f"IP Fabric {len(ipf_col_sites)} items.")
+    print(f"Netbox {len(nb_col_sites)} items.")
 
-    diff_res = diff(source_from=col_ipf, sync_to=col_netbox)
+    diff_res = diff(source_from=ipf_col_sites, sync_to=nb_col_sites)
 
     if diff_res is None:
         print("No changes required.")
         return
 
-    _dry_report(source_col=col_ipf, diff_res=diff_res)
-
+    _diff_report(diff_res=diff_res)
     if dry_run:
         return
 
-    await _execute_changes(nb=source_netbox.client, diff_res=diff_res)
+    if diff_res.missing:
+        await _create_missing(nb_col_sites, diff_res.missing)
+
+    if diff_res.changes:
+        await _update_changes(nb_col_sites, diff_res.changes)
 
 
-async def _execute_changes(nb: NetboxClient, diff_res):
-    # for each of the sites that do not exist, create one
-
-    def _report(_task: asyncio.Task):
-        res: Response = _task.result()
-        name = _task.get_name()
+async def _create_missing(nb_col: NetboxSiteCollection, missing: dict):
+    def _report(item, res: Response):
+        ident = f"site {item['name']}"
         if res.is_error:
-            print(f"CREATE site: {name}: FAIL: {res.text}")
+            print(f"CREATE {ident}: FAIL: {res.text}")
             return
-        print(f"CREATE site: {name}: OK")
+        print(f"CREATE {ident}: OK")
 
-    tasks = [
-        asyncio.create_task(
-            coro=nb.post(url="/dcim/sites/", json={"name": name, "slug": name}),
-            name=name,
-        )
-        for name in diff_res.missing
-    ]
-
-    [_t.add_done_callback(_report) for _t in tasks]
-
-    await asyncio.gather(*tasks, return_exceptions=True)
+    print("CREATE:BEGIN ...")
+    await nb_col.create_missing(missing, callback=_report)
+    print("CREATE:DONE.")
 
 
-def _dry_report(source_col, diff_res):
+async def _update_changes(nb_col: NetboxSiteCollection, changes: dict):
+    pass
 
-    tab_data = [
-        [key, ["Yes", "No"][key in diff_res.missing]] for key in source_col.inventory
-    ]
-    tab_data.sort(key=itemgetter(0))
 
-    print(tabulate(headers=["Site Name", "Exists"], tabular_data=tab_data))
+def _diff_report(diff_res: DiffResults):
+    print("\nDiff Report")
+    print(f"   Missing: count {len(diff_res.missing)}")
+    print(f"   Needs Update: count {len(diff_res.changes)}")
+    print("\n")
