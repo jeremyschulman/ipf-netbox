@@ -15,3 +15,10 @@ def with_sources(coro):
             return await coro(ipf_src, nb_src, *vargs, **kwargs)
 
     return wrapper
+
+
+def diff_report_brief(diff_res):
+    print("\nDiff Report")
+    print(f"   Missing: count {len(diff_res.missing)}")
+    print(f"   Needs Update: count {len(diff_res.changes)}")
+    print("\n")

@@ -6,7 +6,7 @@ from aioipfabric.client import IPFabricClient
 
 NAME = "ipfabric"
 
-__all__ = ["IPFabricSource"]
+__all__ = ["IPFabricSource", "IPFabricClient"]
 
 
 def _init_check():

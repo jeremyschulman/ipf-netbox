@@ -1,4 +1,4 @@
-from io import FileIO
+from typing import TextIO
 from contextvars import ContextVar
 
 import toml
@@ -16,7 +16,7 @@ def get_config() -> ConfigModel:
     return g_config.get()
 
 
-def load_config_file(filepath: FileIO):
+def load_config_file(filepath: TextIO):
     try:
         config_obj = ConfigModel.parse_obj(toml.load(filepath))
         g_config.set(config_obj)

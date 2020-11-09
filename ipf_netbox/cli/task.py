@@ -6,6 +6,7 @@ from ipf_netbox.tasks.sites import ensure_sites
 from ipf_netbox.tasks.devices import ensure_devices
 from ipf_netbox.tasks.ipaddrs import ensure_ipaddrs
 from ipf_netbox.tasks.interfaces import ensure_interfaces
+from ipf_netbox.tasks.lags import ensure_lags
 
 
 @cli.group(name="task")
@@ -117,3 +118,26 @@ def cli_ensure_interfaces(ctx: click.Context, filters: str):
     group_params = ctx.parent.params
 
     asyncio.run(ensure_interfaces(**group_params, filters=filters))
+
+
+# -----------------------------------------------------------------------------
+#
+#                                 Ensure Lags
+#
+# -----------------------------------------------------------------------------
+
+
+@cli_task.command(
+    "ensure-lags", help="Ensure Netbox interface LAG members match IP Fabric"
+)
+@click.option(
+    "--filter",
+    "filters",
+    help="IPF port-channel table filter expression",
+    required=True,
+)
+@click.pass_context
+def cli_ensure_lags(ctx: click.Context, **params):
+    group_params = ctx.parent.params
+
+    asyncio.run(ensure_lags(**group_params, **params))
