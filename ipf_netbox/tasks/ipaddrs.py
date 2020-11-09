@@ -1,4 +1,6 @@
 import asyncio
+from typing import List
+
 
 from httpx import Response
 
@@ -10,8 +12,35 @@ from ipf_netbox.netbox.ipaddrs import NetboxIPAddrCollection
 
 
 @with_sources
-async def ensure_ipaddrs(ipf, nb, **params) -> IPFabricIPAddrCollection:
-    print("\nEnsure IP Address.")
+async def ensure_ipaddrs(ipf, nb, **params) -> List[str]:
+    """
+    Ensure Netbox contains devices interfaces IP addresses found IP Fabric.
+
+    Parameters
+    ----------
+    ipf: IPFabric Source instance
+    nb: Netbox Source instance
+
+    Other Parameters
+    ----------------
+    dry_run: bool
+        Determines dry-run mode
+
+    devices: List[str]
+        List of device to use as basis for action
+
+    filters: str
+        The IPF device inventory filter expression to use
+        as basis for action.
+
+    Returns
+    -------
+    List[str]
+        The list of IPF device hostnames found in the IPF collection.  Can
+        be used as a basis for other collection activities.
+    """
+
+    print("\nEnsure Device Interface IP Address.")
 
     print("Fetching from IP Fabric ... ", flush=True, end="")
 
@@ -22,15 +51,14 @@ async def ensure_ipaddrs(ipf, nb, **params) -> IPFabricIPAddrCollection:
     if (filters := params.get("filters")) is not None:
         await ipf_col.fetch(filters=filters)
 
-    elif (ipf_col_ifaces := params.get("interfaces")) is not None:
+    elif (ipf_device_list := params.get("devices")) is not None:
 
-        device_list = {rec["hostname"] for rec in ipf_col_ifaces.inventory.values()}
-        print(f"{len(device_list)} devices ... ", flush=True, end="")
+        print(f"{len(ipf_device_list)} devices ... ", flush=True, end="")
 
         await asyncio.gather(
             *(
                 ipf_col.fetch(filters=f"hostname = {hostname}")
-                for hostname in device_list
+                for hostname in ipf_device_list
             )
         )
 
@@ -38,12 +66,13 @@ async def ensure_ipaddrs(ipf, nb, **params) -> IPFabricIPAddrCollection:
         raise RuntimeError("FAIL: No parameters to fetch ipaddrs")
 
     ipf_col.make_keys()
+    print(f"{len(ipf_col)} items.")
 
     if not len(ipf_col.source_records):
-        print(f"0 items matching filter: `{filters}`.")
-        return ipf_col
+        return []
 
-    print(f"{len(ipf_col)} items.")
+    # create the IPF hostname specific device list for return purposes.
+    ipf_device_list = [rec["hostname"] for rec in ipf_col.source_records]
 
     # -------------------------------------------------------------------------
     # Need to fetch from Netbox on a per-device basis.
@@ -53,11 +82,13 @@ async def ensure_ipaddrs(ipf, nb, **params) -> IPFabricIPAddrCollection:
 
     nb_col: NetboxIPAddrCollection = get_collection(source=nb, name="ipaddrs")  # noqa
 
-    device_list = {rec["hostname"] for rec in ipf_col.inventory.values()}
-    print(f"{len(device_list)} devices ... ", flush=True, end="")
+    col_device_list = {rec["hostname"] for rec in ipf_col.inventory.values()}
+    print(f"{len(col_device_list)} devices ... ", flush=True, end="")
 
     nb.client.timeout = 120
-    await asyncio.gather(*(nb_col.fetch(hostname=hostname) for hostname in device_list))
+    await asyncio.gather(
+        *(nb_col.fetch(hostname=hostname) for hostname in col_device_list)
+    )
 
     nb_col.make_keys()
     print(f"{len(nb_col)} items.", flush=True)
@@ -69,12 +100,12 @@ async def ensure_ipaddrs(ipf, nb, **params) -> IPFabricIPAddrCollection:
     diff_res = diff(source_from=ipf_col, sync_to=nb_col)
     if not diff_res:
         print("No changes required.")
-        return ipf_col
+        return ipf_device_list
 
     _diff_report(diff_res)
 
     if params.get("dry_run", False) is True:
-        return ipf_col
+        return ipf_device_list
 
     tasks = list()
     if diff_res.missing:
@@ -84,6 +115,7 @@ async def ensure_ipaddrs(ipf, nb, **params) -> IPFabricIPAddrCollection:
         tasks.append(_diff_update(nb_col, diff_res.changes))
 
     await asyncio.gather(*tasks)
+    return ipf_device_list
 
 
 def _diff_report(diff_res: DiffResults):

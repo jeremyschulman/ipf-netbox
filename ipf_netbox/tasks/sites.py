@@ -31,10 +31,19 @@ from ipf_netbox.ipfabric.sites import IPFabricSiteCollection
 
 
 @with_sources
-async def ensure_sites(ipf, nb, dry_run):
+async def ensure_sites(ipf, nb, **params):
     """
     Ensure Netbox contains the sites defined in IP Fabric
 
+    Parameters
+    ----------
+    ipf: IPFabric Source instance
+    nb: Netbox Source instance
+
+    Other Parameters
+    ----------------
+    dry_run: bool
+        Determines dry-run mode
 
     """
     print("Ensure Netbox contains the Sites defined in IP Fabric")
@@ -61,7 +70,7 @@ async def ensure_sites(ipf, nb, dry_run):
         return
 
     _diff_report(diff_res=diff_res)
-    if dry_run:
+    if params.get("dry_run", False) is True:
         return
 
     if diff_res.missing:
@@ -69,6 +78,13 @@ async def ensure_sites(ipf, nb, dry_run):
 
     if diff_res.changes:
         await _update_changes(nb_col_sites, diff_res.changes)
+
+
+# -----------------------------------------------------------------------------
+#
+#                            PRIVATE CODE BEGINS
+#
+# -----------------------------------------------------------------------------
 
 
 async def _create_missing(nb_col: NetboxSiteCollection, missing: dict):
@@ -84,8 +100,8 @@ async def _create_missing(nb_col: NetboxSiteCollection, missing: dict):
     print("CREATE:DONE.")
 
 
-async def _update_changes(nb_col: NetboxSiteCollection, changes: dict):
-    pass
+async def _update_changes(nb_col: NetboxSiteCollection, changes: dict):  # noqa
+    print("WARNING: Site changes not supported at this time.")
 
 
 def _diff_report(diff_res: DiffResults):
