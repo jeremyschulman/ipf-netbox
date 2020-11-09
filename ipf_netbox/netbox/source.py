@@ -3,6 +3,8 @@ import asyncio
 from os import environ
 from operator import itemgetter
 from itertools import chain, starmap
+import re
+import unicodedata
 
 
 from httpx import AsyncClient
@@ -132,6 +134,26 @@ class NetboxClient(AsyncClient):
 
         key_fn = key if isinstance(key, Callable) else itemgetter(key)  # noqa
         return {key_fn(rec): rec for rec in flat}
+
+    @staticmethod
+    def slugify(value, allow_unicode=False):
+        """
+        NOTE: lifed from django.utils.text.
+        Convert to ASCII if 'allow_unicode' is False. Convert spaces to hyphens.
+        Remove characters that aren't alphanumerics, underscores, or hyphens.
+        Convert to lowercase. Also strip leading and trailing whitespace.
+        """
+        value = str(value)
+        if allow_unicode:
+            value = unicodedata.normalize("NFKC", value)
+        else:
+            value = (
+                unicodedata.normalize("NFKD", value)
+                .encode("ascii", "ignore")
+                .decode("ascii")
+            )
+        value = re.sub(r"[^\w\s-]", "", value.lower()).strip()
+        return re.sub(r"[-\s]+", "-", value)
 
 
 class NetboxSource(Source):

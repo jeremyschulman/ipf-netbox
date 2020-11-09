@@ -69,12 +69,12 @@ async def ensure_ipaddrs(ipf, nb, **params) -> IPFabricIPAddrCollection:
     diff_res = diff(source_from=ipf_col, sync_to=nb_col)
     if not diff_res:
         print("No changes required.")
-        return
+        return ipf_col
 
     _diff_report(diff_res)
 
     if params.get("dry_run", False) is True:
-        return
+        return ipf_col
 
     tasks = list()
     if diff_res.missing:

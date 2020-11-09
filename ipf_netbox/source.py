@@ -1,4 +1,5 @@
 from abc import ABC
+from typing import Coroutine
 
 from .igather import igather
 
@@ -34,6 +35,9 @@ class Source(ABC):
         for key, item in updates.items():
             if (coro := creator(key, item)) is None:
                 continue
+
+            if not isinstance(coro, Coroutine):
+                raise RuntimeError("Source.update requires a coroutine")
 
             tasks[coro] = item
 
