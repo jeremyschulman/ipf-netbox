@@ -84,12 +84,19 @@ async def ensure_lags(ipf, nb, **params) -> Set[str]:
 
 
 async def _diff_create(col: NetboxPortChanCollection, missing: dict):
-    print("MISSING LAG interfaces, use 'ensure-interfaces' to create.")
+    def _report(item, res: Response):
+        ident = f"{item['hostname']}, {item['interface']} -> {item['portchan']}"
+        if res.is_error:
+            print(f"CREATE:FAIL: {ident}, {res.text}.")
+            return
+        print(f"CREATE:OK: {ident}.")
+
+    await col.create_missing(missing=missing, callback=_report)
 
 
 async def _diff_update(col: NetboxPortChanCollection, changes: dict):
     def _report(item, res: Response):
-        ident = f"portchan {item['hostname']}, {item['member']}"
+        ident = f"{item.fingerprint['hostname']}, {item.fingerprint['interface']} -> {item.fields['portchan']}"
         if res.is_error:
             print(f"CHANGE:FAIL: {ident}, {res.text}")
             return

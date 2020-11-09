@@ -14,6 +14,6 @@ __all__ = ["PortChannelCollection"]
 class PortChannelCollection(CollectionMixin):
     name = "portchans"
 
-    FINGERPRINT_FIELDS = ("hostname", "interface", "portchan")
+    FINGERPRINT_FIELDS = ("hostname", "interface", "members")
 
     KEY_FIELDS = ("hostname", "interface")

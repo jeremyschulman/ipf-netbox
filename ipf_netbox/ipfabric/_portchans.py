@@ -23,24 +23,13 @@ class IPFabricPortChannelCollection(Collector, PortChannelCollection):
 
         records = await api.fetch_portchannels(**params)
         api.xf_portchannel_members(records)
-
-        # invert these records to a flat list of fields.
-
-        xf_records = [
-            dict(
-                hostname=rec["hostname"],
-                intName=member["intName"],
-                portchan=rec["intName"],
-            )
-            for rec in records
-            for member in rec["members"]
-        ]
-
-        self.source_records.extend(xf_records)
+        self.source_records.extend(records)
 
     def fingerprint(self, rec: Dict) -> Dict:
-        return dict(
-            hostname=normalize_hostname(rec["hostname"]),
-            interface=expand_interface(rec["intName"]),
-            portchan=expand_interface(rec["portchan"]),
-        )
+        return {
+            "interface": expand_interface(rec["intName"]),
+            "hostname": normalize_hostname(rec["hostname"]),
+            "members": {
+                expand_interface(member["intName"]) for member in rec["members"]
+            },
+        }

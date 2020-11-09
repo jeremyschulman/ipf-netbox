@@ -2,18 +2,16 @@
 # System Imports
 # -----------------------------------------------------------------------------
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 import asyncio
-from itertools import chain
 
 # -----------------------------------------------------------------------------
 # Private Imports
 # -----------------------------------------------------------------------------
 
-from ipf_netbox.collection import Collector, CollectionCallback
+from ipf_netbox.collection import Collector, CollectionCallback, get_collection
 from ipf_netbox.collections.portchans import PortChannelCollection
 from ipf_netbox.netbox.source import NetboxSource, NetboxClient
-from ipf_netbox.diff import Changes
 from ipf_netbox.igather import igather
 
 # -----------------------------------------------------------------------------
@@ -30,7 +28,7 @@ __all__ = ["NetboxPortChanCollection"]
 # -----------------------------------------------------------------------------
 
 _INTFS_URL = "/dcim/interfaces/"
-_MEMBERS_KEY = "__members__"
+_LAG_KEY_ = "__lag__"
 
 
 class NetboxPortChanCollection(Collector, PortChannelCollection):
@@ -53,20 +51,22 @@ class NetboxPortChanCollection(Collector, PortChannelCollection):
         nb_filters["device"] = hostname
         nb_filters["type"] = "lag"
 
-        records = await nb_api.paginate(url=_INTFS_URL, filters=nb_filters)
+        lag_records = await nb_api.paginate(url=_INTFS_URL, filters=nb_filters)
 
-        # ---------------------------------------------------------------------
-        # Get any LAG member interfaces.  Store these members as a dict where
-        # key=<if-name>, value=<if-id> so that changes and be made to existing
-        # members if necessary.
-        # ---------------------------------------------------------------------
+        # create a cache of the known LAG interfaces because we will need these
+        # later in the create/update methods.
 
-        for rec in records:
-            res = await nb_api.get(_INTFS_URL, params={"lag_id": rec["id"]})
-            members = {rec["name"]: rec["id"] for rec in res.json()["results"]}
-            rec[_MEMBERS_KEY] = members
+        self.cache[self] = dict()
 
-        self.source_records.extend(records)
+        self.cache[self]["lag_recs"] = {
+            (hostname, lag_rec["name"]): lag_rec for lag_rec in lag_records
+        }
+
+        for lag_rec in lag_records:
+            res = await nb_api.get(_INTFS_URL, params={"lag_id": lag_rec["id"]})
+            for if_rec in res.json()["results"]:
+                if_rec[_LAG_KEY_] = lag_rec
+                self.source_records.append(if_rec)
 
     async def fetch_keys(self, keys: Dict):
         await asyncio.gather(
@@ -80,86 +80,69 @@ class NetboxPortChanCollection(Collector, PortChannelCollection):
         return dict(
             hostname=rec["device"]["name"],
             interface=rec["name"],
-            members=set(rec[_MEMBERS_KEY].keys()),
+            portchan=rec[_LAG_KEY_]["name"],
         )
 
-    async def update_changes(
-        self,
-        changes: Dict[Tuple, Changes],
-        callback: Optional[CollectionCallback] = None,
+    async def create_missing(
+        self, missing: Dict, callback: Optional[CollectionCallback] = None
     ):
-        # the only 'change' is the set of member interfaces.  For members that
-        # have been removed, we need to delete the LAG parent ID. For members
-        # that have been added, we need to add the LAG parent ID.  Since it is
-        # possible for a member interface to "move" we will iterate the deletes
-        # and the iterate the adds before calling the patches.  The patch
-        # operations are made to the member interface records only.
-        #
-        # Members are stored as a set():
-        #
-        #    change.fingerprint['members'] == HAS
-        #    change.fields['members'] == SHOULD
-        #
-        #    SHOULD - HAS = members to add
-        #    HAS - SHOULD = members to delete
+        # missing items means that the existing interface does not have any
+        # associated LAG.  We need to patch the interface record with the
+        # LAG id.
+        api: NetboxClient = self.source.client
+
+        # we first need to retrieve all of the interface records
+        col_ifaces = get_collection(source=self.source, name="interfaces")
+
+        async for _ in igather(
+            (
+                col_ifaces.fetch(hostname=item["hostname"], name=item["interface"])
+                for item in missing.values()
+            ),
+            limit=100,
+        ):
+            pass
+
+        col_ifaces.make_keys()
+
+        def _patch(key, item):
+            if_rec = col_ifaces.source_record_keys[key]
+            lag_key = (item["hostname"], item["portchan"])
+            lag_rec = self.cache[self]["lag_recs"][lag_key]
+            return api.patch(
+                _INTFS_URL + f"{if_rec['id']}/", json=dict(lag=lag_rec["id"])
+            )
+
+        await self.source.update(missing, callback=callback, creator=_patch)
+
+    async def update_changes(
+        self, changes: Dict, callback: Optional[CollectionCallback] = None
+    ):
+        # we first need to retrieve all of the interface records
+        col_ifaces = get_collection(source=self.source, name="interfaces")
+
+        async for _ in igather(
+            (
+                col_ifaces.fetch(
+                    hostname=item.fingerprint["hostname"],
+                    name=item.fingerprint["interface"],
+                )
+                for item in changes.values()
+            ),
+            limit=100,
+        ):
+            pass
+
+        col_ifaces.make_keys()
 
         api: NetboxClient = self.source.client
 
-        add_if_lag = dict()
-        del_if_lag = dict()
-
-        for lag_key, lag_change in changes.items():
-            has = lag_change.fingerprint["members"]
-            should = lag_change.fields["members"]
-
-            del_if_members = has - should
-            add_if_members = should - has
-
-            lag_srec = self.source_record_keys[lag_key]
-            dev_id = lag_srec["device"]["id"]
-            lag_id = lag_srec["id"]
-
-            del_if_lag.update({(dev_id, if_name): lag_id for if_name in del_if_members})
-
-            add_if_lag.update({(dev_id, if_name): lag_id for if_name in add_if_members})
-
-        # next fetch all affected member interfaces because those need to have
-        # some change to their `lag` field.
-
-        all_affected = set(add_if_lag) | set(del_if_lag)
-
-        res = await asyncio.gather(
-            *(
-                api.get(_INTFS_URL, params=dict(device_id=dev_id, name=if_name))
-                for dev_id, if_name in all_affected
+        def _patch(key, item):
+            if_rec = col_ifaces.source_record_keys[key]
+            lag_key = (item.fingerprint["hostname"], item.fields["portchan"])
+            lag_rec = self.cache[self]["lag_recs"][lag_key]
+            return api.patch(
+                _INTFS_URL + f"{if_rec['id']}/", json=dict(lag=lag_rec["id"])
             )
-        )
 
-        if_recs = list(chain.from_iterable(rec.json()["results"] for rec in res))
-
-        # update the `lag` field to either be cleared or updated to new parent
-        # LAG interface
-
-        for if_rec in if_recs:
-            if_key = (if_rec["device"]["id"], if_rec["name"])
-            if if_key in del_if_lag:
-                if_rec["lag"] = None
-            if if_key in add_if_lag:
-                if_rec["lag"] = add_if_lag[if_key]
-
-        tasks = dict()
-
-        for if_rec in if_recs:
-            coro = api.patch(
-                url=_INTFS_URL + f"{if_rec['id']}/", json={"lag": if_rec["lag"]}
-            )
-            tasks[coro] = {
-                "hostname": if_rec["device"]["name"],
-                "member": if_rec["name"],
-            }
-
-        callback = callback or (lambda _k, _t: True)
-
-        async for orig_coro, res in igather(tasks, limit=100):
-            item = tasks[orig_coro]
-            callback(item, res)
+        await self.source.update(changes, callback=callback, creator=_patch)
