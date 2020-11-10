@@ -53,15 +53,15 @@ class NetboxIPAddrCollection(Collector, IPAddrCollection):
 
         api = self.source.client
 
-        def _create_task(key, item):
-            if_key = if_key_fn(item)
+        def _create_task(key, fields):
+            if_key = if_key_fn(fields)
             if (if_rec := if_lkup.get(if_key)) is None:
                 print(
                     "SKIP: ipaddr {}, missing interface: {}, {}.".format(key, *if_key)
                 )
                 return None
 
-            payload = dict(address=item["ipaddr"], interface=if_rec["id"])
+            payload = dict(address=fields["ipaddr"], interface=if_rec["id"])
 
             if if_rec["name"].lower().startswith("loopback"):
                 payload["role"] = "loopback"

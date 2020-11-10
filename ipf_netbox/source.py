@@ -32,14 +32,14 @@ class Source(ABC):
         tasks = dict()
         callback = callback or (lambda _k, _t: True)
 
-        for key, item in updates.items():
-            if (coro := creator(key, item)) is None:
+        for key, value in updates.items():
+            if (coro := creator(key, value)) is None:
                 continue
 
             if not isinstance(coro, Coroutine):
                 raise RuntimeError("Source.update requires a coroutine")
 
-            tasks[coro] = item
+            tasks[coro] = (key, value)
 
         async for orig_coro, res in igather(tasks, limit=100):
             item = tasks[orig_coro]

@@ -136,10 +136,10 @@ def _diff_report(diff_res):
 async def _diff_create(nb_col: NetboxInterfaceCollection, missing):
     fields_fn = itemgetter("hostname", "interface")
 
-    def _done(item, _res: Response):
-        # _res: Response = task.result()
+    def _done(_item, _res: Response):
+        _key, _fields = _item
         _res.raise_for_status()
-        _hostname, _if_name = fields_fn(item)
+        _hostname, _if_name = fields_fn(_fields)
         print(f"CREATE:OK: interface {_hostname}, {_if_name}", flush=True)
 
     print("CREATE:BEGIN ...")
@@ -150,10 +150,11 @@ async def _diff_create(nb_col: NetboxInterfaceCollection, missing):
 async def _diff_update(nb_col: NetboxInterfaceCollection, changes):
     fields_fn = itemgetter("hostname", "interface")
 
-    def _done(change, res: Response):
-        # res: Response = task.result()
-        _hostname, _ifname = fields_fn(change.fingerprint)
-        res.raise_for_status()
+    def _done(_item, _res: Response):
+        _key, _ch_fields = _item
+        _fields = nb_col.inventory[_key]
+        _hostname, _ifname = fields_fn(_fields)
+        _res.raise_for_status()
         print(f"CHANGE:OK: interface {_hostname}, {_ifname}", flush=True)
 
     print("CHANGE:BEGIN ...")

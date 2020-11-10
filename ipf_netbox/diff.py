@@ -3,7 +3,6 @@ from collections import namedtuple
 
 from ipf_netbox.collection import Collector
 
-Changes = namedtuple("Changes", ["fingerprint", "fields"])
 DiffResults = namedtuple("DiffResults", ["missing", "extras", "changes"])
 
 
@@ -68,7 +67,7 @@ def diff(
                 item_changes[field] = source_fp[field]
 
         if len(item_changes):
-            changes[key] = Changes(sync_fp, item_changes)
+            changes[key] = item_changes
 
     if not any((missing_key_items, extra_key_items, changes)):
         return None
