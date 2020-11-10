@@ -1,8 +1,20 @@
+# -----------------------------------------------------------------------------
+# System Imports
+# -----------------------------------------------------------------------------
+
 import asyncio
 from operator import itemgetter
 
+# -----------------------------------------------------------------------------
+# Public Imports
+# -----------------------------------------------------------------------------
+
 from tabulate import tabulate
 from httpx import Response
+
+# -----------------------------------------------------------------------------
+# Private Imports
+# -----------------------------------------------------------------------------
 
 from ipf_netbox.collection import get_collection
 from ipf_netbox.diff import diff, DiffResults, Changes
@@ -11,10 +23,40 @@ from ipf_netbox.ipfabric.devices import IPFabricDeviceCollection
 from ipf_netbox.tasks.tasktools import with_sources
 
 
+# -----------------------------------------------------------------------------
+#
+#                                 CODE BEGINS
+#
+# -----------------------------------------------------------------------------
+
+
 @with_sources
 async def ensure_devices(ipf, netbox, **params) -> IPFabricDeviceCollection:
     """
-    Ensure Netbox contains devices found IP Fabric in given Site
+    Ensure Netbox contains devices found IP Fabric.
+
+    Parameters
+    ----------
+    ipf: IPFabric Source instance
+    netbox: Netbox Source instance
+
+    Other Parameters
+    ----------------
+    dry_run: bool
+        Determines dry-run mode
+
+    devices: List[str]
+        List of device to use as basis for action
+
+    filters: str
+        The IPF device inventory filter expression to use
+        as basis for action.
+
+    Returns
+    -------
+    IPFabricDeviceCollection:
+        The IP Fabric device collection, that can be used by later processes
+        that need to cross reference this information.
     """
     print("\nEnsure Devices.")
     print("Fetching from IP Fabric ... ", flush=True, end="")

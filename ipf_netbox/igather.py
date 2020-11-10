@@ -46,7 +46,7 @@ async def igather(coros, limit=None):
         async for result in consume(buf):
             yield result
 
-    except Exception:  # noqa
+    except Exception as exc:  # noqa
         submit_task.cancel()
         # cancel scheduled
         while not buf.empty():
@@ -57,7 +57,14 @@ async def igather(coros, limit=None):
                     await task
                 except Exception:
                     pass
+
         # cancel pending
         for coro in coros:
             asyncio.create_task(coro).cancel()
+
         raise
+
+
+async def iawait(coros, limit=None):
+    async for _ in igather(coros, limit):
+        pass

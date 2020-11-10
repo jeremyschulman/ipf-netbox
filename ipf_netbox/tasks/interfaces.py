@@ -1,3 +1,4 @@
+from typing import List
 import asyncio
 from operator import itemgetter
 
@@ -11,7 +12,34 @@ from ipf_netbox.netbox.interfaces import NetboxInterfaceCollection
 
 
 @with_sources
-async def ensure_interfaces(ipf, nb, **params) -> IPFabricInterfaceCollection:
+async def ensure_interfaces(ipf, nb, **params) -> List[str]:
+    """
+    Ensure Netbox contains devices interfaces found IP Fabric.
+
+    Parameters
+    ----------
+    ipf: IPFabric Source instance
+    nb: Netbox Source instance
+
+    Other Parameters
+    ----------------
+    dry_run: bool
+        Determines dry-run mode
+
+    devices: List[str]
+        List of device to use as basis for action
+
+    filters: str
+        The IPF device inventory filter expression to use
+        as basis for action.
+
+    Returns
+    -------
+    List[str]
+        The list of IPF device hostnames found in the IPF collection.  Can
+        be used as a basis for other collection activities.
+    """
+
     print("\nEnsure Device Interfaces.")
 
     # -------------------------------------------------------------------------
@@ -27,17 +55,16 @@ async def ensure_interfaces(ipf, nb, **params) -> IPFabricInterfaceCollection:
     if (filters := params.get("filters")) is not None:
         await ipf_col.fetch(filters=filters)
 
-    elif (ipf_col_devs := params.get("devices")) is not None:
+    elif (ipf_device_list := params.get("devices")) is not None:
         # if provided device collection, then use that device list to find the
         # associated interfaces.
 
-        device_list = {rec["hostname"] for rec in ipf_col_devs.inventory.values()}
-        print(f"{len(device_list)} devices ... ", flush=True, end="")
+        print(f"{len(ipf_device_list)} devices ... ", flush=True, end="")
 
         await asyncio.gather(
             *(
                 ipf_col.fetch(filters=f"hostname = {hostname}")
-                for hostname in device_list
+                for hostname in ipf_device_list
             )
         )
 
@@ -48,7 +75,10 @@ async def ensure_interfaces(ipf, nb, **params) -> IPFabricInterfaceCollection:
     print(f"{len(ipf_col)} items.", flush=True)
 
     if not len(ipf_col):
-        return ipf_col
+        return []
+
+    # create the IPF hostname specific device list for return purposes.
+    ipf_device_list = [rec["hostname"] for rec in ipf_col.source_records]
 
     # -------------------------------------------------------------------------
     # Need to fetch interfaces from Netbox on a per-device basis.
@@ -60,11 +90,13 @@ async def ensure_interfaces(ipf, nb, **params) -> IPFabricInterfaceCollection:
         source=nb, name="interfaces"
     )
 
-    device_list = {rec["hostname"] for rec in ipf_col.inventory.values()}
-    print(f"{len(device_list)} devices ... ", flush=True, end="")
+    col_device_list = {rec["hostname"] for rec in ipf_col.inventory.values()}
+    print(f"{len(col_device_list)} devices ... ", flush=True, end="")
 
     nb.client.timeout = 120
-    await asyncio.gather(*(nb_col.fetch(hostname=hostname) for hostname in device_list))
+    await asyncio.gather(
+        *(nb_col.fetch(hostname=hostname) for hostname in col_device_list)
+    )
 
     nb_col.make_keys()
     print(f"{len(nb_col)} items.", flush=True)
@@ -76,12 +108,12 @@ async def ensure_interfaces(ipf, nb, **params) -> IPFabricInterfaceCollection:
     diff_res = diff(source_from=ipf_col, sync_to=nb_col)
     if not diff_res:
         print("No changes required.")
-        return ipf_col
+        return ipf_device_list
 
     _diff_report(diff_res)
 
     if params.get("dry_run", False) is True:
-        return ipf_col
+        return ipf_device_list
 
     tasks = list()
     if diff_res.missing:
@@ -91,7 +123,7 @@ async def ensure_interfaces(ipf, nb, **params) -> IPFabricInterfaceCollection:
         tasks.append(_diff_update(nb_col, diff_res.changes))
 
     await asyncio.gather(*tasks)
-    return ipf_col
+    return ipf_device_list
 
 
 def _diff_report(diff_res):

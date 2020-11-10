@@ -1,6 +1,6 @@
 click
 httpx
-aio-ipfabric
+aio-ipfabric>=0.8.0
 tabulate
 pydantic
 pydantic-env
