@@ -13,9 +13,10 @@
 #  limitations under the License.
 
 """
-This file contains the filtering functions that are using to process the '--include' and '--exclude' command line
-options.  The code in this module is not specific to the netcfgbu source_records column names, can could be re-used for other
-CSV related tools and use-cases.
+This file contains the filtering functions that are using to process the
+'--include' and '--exclude' command line options.  The code in this module is
+not specific to the netcfgbu source_records column names, can could be re-used
+for other CSV related tools and use-cases.
 """
 
 from typing import List, AnyStr, Optional, Callable, Dict, Sequence

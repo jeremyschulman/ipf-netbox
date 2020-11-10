@@ -9,7 +9,7 @@ from ipf_netbox.diff import diff
 from ipf_netbox.tasks.tasktools import with_sources, diff_report_brief
 from ipf_netbox.ipfabric.portchans import IPFabricPortChannelCollection
 from ipf_netbox.netbox.portchans import NetboxPortChanCollection
-
+from ipf_netbox.igather import iawait
 
 # -----------------------------------------------------------------------------
 #
@@ -35,6 +35,21 @@ async def ensure_lags(ipf, nb, **params) -> Set[str]:
 
     if (filters := params.get("filters")) is not None:
         await ipf_col_pc.fetch(filters=filters)
+
+    elif (ipf_device_list := params.get("devices")) is not None:
+        # if provided device collection, then use that device list to find the
+        # associated port-channels
+
+        print(f"{len(ipf_device_list)} devices ... ", flush=True, end="")
+
+        await iawait(
+            (
+                ipf_col_pc.fetch(filters=f"hostname = {hostname}")
+                for hostname in ipf_device_list
+            ),
+            limit=100,
+        )
+
     else:
         raise RuntimeError("Request lag parameters missing.")
 

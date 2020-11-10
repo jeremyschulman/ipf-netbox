@@ -4,7 +4,6 @@
 
 import asyncio
 from operator import itemgetter
-from typing import List
 
 # -----------------------------------------------------------------------------
 # Public Imports
@@ -32,7 +31,7 @@ from ipf_netbox.tasks.tasktools import with_sources
 
 
 @with_sources
-async def ensure_devices(ipf, netbox, **params) -> List[str]:
+async def ensure_devices(ipf, netbox, **params) -> IPFabricDeviceCollection:
     """
     Ensure Netbox contains devices found IP Fabric.
 
@@ -55,9 +54,9 @@ async def ensure_devices(ipf, netbox, **params) -> List[str]:
 
     Returns
     -------
-    List[str]
-        The list of IPF device hostnames found in the IPF collection.  Can
-        be used as a basis for other collection activities.
+    IPFabricDeviceCollection:
+        The IP Fabric device collection, that can be used by later processes
+        that need to cross reference this information.
     """
     print("\nEnsure Devices.")
     print("Fetching from IP Fabric ... ", flush=True, end="")
@@ -75,15 +74,12 @@ async def ensure_devices(ipf, netbox, **params) -> List[str]:
 
     if not len(ipf_col.source_records):
         print(f"Done. No source_records matching filter:\n\t{filters}")
-        return []
+        return ipf_col
 
     print("Fetching from Netbox ... ", flush=True, end="")
     netbox_col: NetboxDeviceCollection = get_collection(  # noqa
         source=netbox, name="devices"
     )
-
-    # create the IPF hostname specific device list for return purposes.
-    device_list = [rec["hostname"] for rec in ipf_col.source_records]
 
     await netbox_col.fetch()
     netbox_col.make_keys()
@@ -100,12 +96,12 @@ async def ensure_devices(ipf, netbox, **params) -> List[str]:
 
     if diff_res is None:
         print("No changes required.")
-        return device_list
+        return ipf_col
 
     _report_proposed_changes(diff_res)
 
     if params.get("dry_run", False) is True:
-        return device_list
+        return ipf_col
 
     updates = list()
 
@@ -117,7 +113,7 @@ async def ensure_devices(ipf, netbox, **params) -> List[str]:
 
     await asyncio.gather(*updates)
 
-    return device_list
+    return ipf_col
 
 
 def _report_proposed_changes(diff_res: DiffResults):
