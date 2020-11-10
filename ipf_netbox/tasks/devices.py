@@ -98,7 +98,7 @@ async def ensure_devices(ipf, netbox, **params) -> IPFabricDeviceCollection:
         print("No changes required.")
         return ipf_col
 
-    _report_proposed_changes(diff_res)
+    _report_proposed_changes(netbox_col, diff_res)
 
     if params.get("dry_run", False) is True:
         return ipf_col
@@ -116,7 +116,7 @@ async def ensure_devices(ipf, netbox, **params) -> IPFabricDeviceCollection:
     return ipf_col
 
 
-def _report_proposed_changes(diff_res: DiffResults):
+def _report_proposed_changes(nb_col: NetboxDeviceCollection, diff_res: DiffResults):
     if diff_res.missing:
         print("\nNetbox Missing Devices")
         tabular_data = sorted(
@@ -136,15 +136,15 @@ def _report_proposed_changes(diff_res: DiffResults):
         )
 
     if diff_res.changes:
-        print("\nDifferences:", end="\n")
-        for sn, changes in diff_res.changes.items():
-            fp = changes.fingerprint
-            hostname = fp["hostname"]
+        print("\nDifferences:\tNetbox -> IP Fabric", end="\n")
+        for key, ch_fields in diff_res.changes.items():
+            fields = nb_col.inventory[key]
+            hostname = fields["hostname"]
             kv_pairs = ", ".join(
-                f"{k_}: {fp[k_] or '(empty)'} -> {v_}"
-                for k_, v_ in changes.fields.items()
+                f"{k_}: {fields[k_] or '(empty)'} -> {v_}"
+                for k_, v_ in ch_fields.items()
             )
-            print(f"Device {hostname}: {kv_pairs}")
+            print(f"  {hostname}: {kv_pairs}")
         print("\n")
 
 

@@ -126,8 +126,8 @@ def _diff_report(diff_res: DiffResults):
 
 
 async def _diff_update(nb_col: NetboxIPAddrCollection, changes):
-    def _done(_key, res: Response):
-        # res: Response = _task.result()
+    def _done(_item, res: Response):
+        _key, _changes = _item
         _hostname, _ifname = _key
         res.raise_for_status()
         print(f"UPDATE:OK: ipaddr {_hostname}, {_ifname}", flush=True)
@@ -136,11 +136,14 @@ async def _diff_update(nb_col: NetboxIPAddrCollection, changes):
 
 
 async def _diff_create(nb_col: NetboxIPAddrCollection, missing):
-    def _done(item, _res: Response):
+    def _done(_item, _res: Response):
+        _key, _fields = _item
         _res.raise_for_status()
+        ident = (
+            f"ipaddr {_fields['hostname']}, {_fields['interface']}, {_fields['ipaddr']}"
+        )
         print(
-            f"CREATE:OK: ipaddr {item['hostname']}, {item['interface']}, {item['ipaddr']}",
-            flush=True,
+            f"CREATE:OK: {ident}", flush=True,
         )
 
     await nb_col.create_missing(missing, callback=_done)

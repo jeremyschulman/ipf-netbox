@@ -103,7 +103,10 @@ async def ensure_lags(ipf, nb, **params) -> Set[str]:
 
 async def _diff_create(col: NetboxPortChanCollection, missing: dict):
     def _report(item, res: Response):
-        ident = f"{item['hostname']}, {item['interface']} -> {item['portchan']}"
+        _key, _fields = item
+        ident = (
+            f"{_fields['hostname']}, {_fields['interface']} -> {_fields['portchan']}"
+        )
         if res.is_error:
             print(f"CREATE:FAIL: {ident}, {res.text}.")
             return
@@ -113,8 +116,12 @@ async def _diff_create(col: NetboxPortChanCollection, missing: dict):
 
 
 async def _diff_update(col: NetboxPortChanCollection, changes: dict):
-    def _report(item, res: Response):
-        ident = f"{item.fingerprint['hostname']}, {item.fingerprint['interface']} -> {item.fields['portchan']}"
+    def _report(_item, res: Response):
+        _key, _ch_fields = _item
+        _fields = col.inventory[_key]
+        ident = (
+            f"{_fields['hostname']}, {_fields['interface']} -> {_fields['portchan']}"
+        )
         if res.is_error:
             print(f"CHANGE:FAIL: {ident}, {res.text}")
             return
@@ -130,8 +137,12 @@ async def _diff_extras(col: NetboxPortChanCollection, extras: dict):
     to remove the relationship between the NB interface->LAG.
     """
 
-    def _report(item, res: Response):
-        ident = f"{item['hostname']}, {item['interface']} -x {item['portchan']}"
+    def _report(_item, res: Response):
+        _key, _ch_fields = _item
+        _fields = col.inventory[_key]
+        ident = (
+            f"{_fields['hostname']}, {_fields['interface']} -x {_fields['portchan']}"
+        )
         if res.is_error:
             print(f"REMOVE:FAIL: {ident}, {res.text}.")
             return

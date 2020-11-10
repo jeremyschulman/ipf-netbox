@@ -137,9 +137,10 @@ class NetboxPortChanCollection(Collector, PortChannelCollection):
 
         api: NetboxClient = self.source.client
 
-        def _patch(key, item):
-            if_rec = col_ifaces.source_record_keys[key]
-            lag_key = (item.fingerprint["hostname"], item.fields["portchan"])
+        def _patch(_key, _ch_fields):
+            if_rec = col_ifaces.source_record_keys[_key]
+            col_fields = self.inventory[_key]
+            lag_key = (col_fields["hostname"], _ch_fields["portchan"])
             lag_rec = self.cache[self]["lag_recs"][lag_key]
             return api.patch(
                 _INTFS_URL + f"{if_rec['id']}/", json=dict(lag=lag_rec["id"])
@@ -166,7 +167,7 @@ class NetboxPortChanCollection(Collector, PortChannelCollection):
 
         col_ifaces.make_keys()
 
-        def _patch(key, item):
+        def _patch(key, _fields):
             if_rec = col_ifaces.source_record_keys[key]
             return api.patch(_INTFS_URL + f"{if_rec['id']}/", json=dict(lag=None))
 
