@@ -17,7 +17,7 @@ from httpx import Response
 # -----------------------------------------------------------------------------
 
 from ipf_netbox.collection import get_collection
-from ipf_netbox.diff import diff, DiffResults, Changes
+from ipf_netbox.diff import diff, DiffResults
 from ipf_netbox.netbox.devices import NetboxDeviceCollection
 from ipf_netbox.ipfabric.devices import IPFabricDeviceCollection
 from ipf_netbox.tasks.tasktools import with_sources
@@ -98,7 +98,7 @@ async def ensure_devices(ipf, netbox, **params) -> IPFabricDeviceCollection:
         print("No changes required.")
         return ipf_col
 
-    _report_proposed_changes(diff_res)
+    _report_proposed_changes(netbox_col, diff_res)
 
     if params.get("dry_run", False) is True:
         return ipf_col
@@ -116,7 +116,7 @@ async def ensure_devices(ipf, netbox, **params) -> IPFabricDeviceCollection:
     return ipf_col
 
 
-def _report_proposed_changes(diff_res: DiffResults):
+def _report_proposed_changes(nb_col: NetboxDeviceCollection, diff_res: DiffResults):
     if diff_res.missing:
         print("\nNetbox Missing Devices")
         tabular_data = sorted(
@@ -136,15 +136,15 @@ def _report_proposed_changes(diff_res: DiffResults):
         )
 
     if diff_res.changes:
-        print("\nDifferences:", end="\n")
-        for sn, changes in diff_res.changes.items():
-            fp = changes.fingerprint
-            hostname = fp["hostname"]
+        print("\nDifferences:\tNetbox -> IP Fabric", end="\n")
+        for key, ch_fields in diff_res.changes.items():
+            fields = nb_col.inventory[key]
+            hostname = fields["hostname"]
             kv_pairs = ", ".join(
-                f"{k_}: {fp[k_] or '(empty)'} -> {v_}"
-                for k_, v_ in changes.fields.items()
+                f"{k_}: {fields[k_] or '(empty)'} -> {v_}"
+                for k_, v_ in ch_fields.items()
             )
-            print(f"Device {hostname}: {kv_pairs}")
+            print(f"  {hostname}: {kv_pairs}")
         print("\n")
 
 
@@ -176,7 +176,7 @@ async def _ensure_primary_ipaddrs(
     ipf_col_ipaddrs.make_keys()
 
     # -------------------------------------------------------------------------
-    # now we need to gather the IPF interface records so we have any fields that
+    # now we need to gather the IPF interface records so we have any _fields that
     # need to be stored into Netbox (e.g. description)
     # -------------------------------------------------------------------------
 
@@ -211,7 +211,8 @@ async def _ensure_primary_ipaddrs(
     diff_ipaddrs = diff(source_from=ipf_col_ipaddrs, sync_to=nb_col_ipaddrs)
 
     def _report_iface(item, _res: Response):
-        hname, iname = item["hostname"], item["interface"]
+        _key, _fields = item
+        hname, iname = _fields["hostname"], _fields["interface"]
         if _res.is_error:
             print(f"CREATE:FAIL: interface {hname}, {iname}: {_res.text}")
             return
@@ -220,7 +221,12 @@ async def _ensure_primary_ipaddrs(
         nb_col_ifaces.source_records.append(_res.json())
 
     def _report_ipaddr(item, _res: Response):
-        hname, iname, ipaddr = item["hostname"], item["interface"], item["ipaddr"]
+        _key, _fields = item
+        hname, iname, ipaddr = (
+            _fields["hostname"],
+            _fields["interface"],
+            _fields["ipaddr"],
+        )
         ident = f"ipaddr {hname}, {iname}, {ipaddr}"
 
         if _res.is_error:
@@ -262,7 +268,8 @@ async def _execute_create(
     # using the other collections.
     # -------------------------------------------------------------------------
 
-    def _report_device(item, _res: Response):
+    def _report_device(update, _res: Response):
+        key, item = update
         if _res.is_error:
             print(f"FAIL: create device {item['hostname']}: {_res.text}")
             return
@@ -279,15 +286,12 @@ async def _execute_create(
     # -------------------------------------------------------------------------
 
     changes = {
-        key: Changes(
-            fingerprint=ipf_col.inventory[key],
-            fields={"ipaddr": ipf_col.inventory[key]["ipaddr"]},
-        )
-        for key in missing.keys()
+        key: {"ipaddr": ipf_col.inventory[key]["ipaddr"]} for key in missing.keys()
     }
 
     def _report_primary(item, _res):  # noqa
-        rec = item.fingerprint
+        key, fields = item
+        rec = nb_col.inventory[key]
         ident = f"device {rec['hostname']} assigned primary-ip4"
         if _res.is_error:
             print(f"CREATE:FAIL: {ident}: {_res.text}")
@@ -306,9 +310,10 @@ async def _execute_changes(
 ):
     print("\nExaminging changes ... ", flush=True)
 
-    def _report(item: Changes, res: Response):
-        # res: Response = _task.result()
-        ident = f"device {item.fingerprint['hostname']}"
+    def _report(change, res: Response):
+        ch_key, ch_fields = change
+        ch_rec = nb_col.inventory[ch_key]
+        ident = f"device {ch_rec['hostname']}"
         print(
             f"CHANGE:FAIL: {ident}, {res.text}"
             if res.is_error
@@ -319,18 +324,18 @@ async def _execute_changes(
     missing_pri_ip = dict()
 
     for key, key_change in changes.items():
-
-        if (ipaddr := key_change.fields.pop("ipaddr", None)) is not None:
+        rec = nb_col.inventory[key]
+        if (ipaddr := key_change.pop("ipaddr", None)) is not None:
             if any(
                 (
-                    key_change.fingerprint["ipaddr"] == "",
+                    rec["ipaddr"] == "",
                     (ipaddr and (params["force_primary_ip"] is True)),
                 )
             ):
-                key_change.fields["ipaddr"] = ipaddr
+                key_change["ipaddr"] = ipaddr
                 missing_pri_ip[key] = key_change
 
-        if len(key_change.fields):
+        if len(key_change):
             actual_changes[key] = key_change
 
     if missing_pri_ip:

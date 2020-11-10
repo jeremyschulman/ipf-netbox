@@ -66,7 +66,7 @@ class NetboxInterfaceCollection(Collector, InterfaceCollection):
             hostname_list=(rec["hostname"] for rec in missing.values()), key="name"
         )
 
-        def _create_task(key, item):
+        def _create_task(key, fields):
             hostname, if_name = key
             if hostname not in device_records:
                 print(f"ERROR: device {hostname} missing.")
@@ -86,7 +86,7 @@ class NetboxInterfaceCollection(Collector, InterfaceCollection):
                 json=dict(
                     device=device_records[hostname]["id"],
                     name=if_name,
-                    description=item["description"],
+                    description=fields["description"],
                     type=if_type,
                 ),
             )
@@ -103,11 +103,11 @@ class NetboxInterfaceCollection(Collector, InterfaceCollection):
 
         client = self.source.client
 
-        def _create_task(key, item):
+        def _create_task(key, fields):
             if_id = self.source_record_keys[key]["id"]
             return client.patch(
                 url=f"/dcim/interfaces/{if_id}/",
-                json=dict(description=item.fields["description"]),
+                json=dict(description=fields["description"]),
             )
 
         await self.source.update(changes, callback, _create_task)

@@ -1,5 +1,6 @@
 from functools import wraps
 from ipf_netbox.source import get_source
+from ipf_netbox.diff import DiffResults
 
 
 def with_sources(coro):
@@ -17,8 +18,9 @@ def with_sources(coro):
     return wrapper
 
 
-def diff_report_brief(diff_res):
+def diff_report_brief(diff_res: DiffResults):
     print("\nDiff Report")
-    print(f"   Missing: count {len(diff_res.missing)}")
+    print(f"   Create Missing: count {len(diff_res.missing)}")
     print(f"   Needs Update: count {len(diff_res.changes)}")
+    print(f"   Remove Extras: count {len(diff_res.extras)}")
     print("\n")

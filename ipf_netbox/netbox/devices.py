@@ -13,7 +13,6 @@ from ipf_netbox.collection import Collector, CollectionCallback
 from ipf_netbox.collections.devices import DeviceCollection
 from ipf_netbox.netbox.source import NetboxSource, NetboxClient
 from ipf_netbox.config import get_config
-from ipf_netbox.diff import Changes
 
 # -----------------------------------------------------------------------------
 # Exports
@@ -85,9 +84,9 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
         role_unknwon = device_role[0]["id"]
         platforms = {rec["slug"]: rec["id"] for rec in platforms}
 
-        def _create_task(key, item):  # noqa
-            model = item["model"]
-            hostname = item["hostname"]
+        def _create_task(key, fields):  # noqa
+            model = fields["model"]
+            hostname = fields["hostname"]
             if (dt_slug := config.maps["models"].get(model, "")) == "":
                 print(
                     f"ERROR: {hostname}, no device-type mapping for model {model}, skipping."
@@ -100,21 +99,21 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
                 )
                 return None
 
-            if (site_id := sites.get(item["site"])) is None:
-                print(f"ERROR: {hostname}, missing site {item['site']}, skipping.")
+            if (site_id := sites.get(fields["site"])) is None:
+                print(f"ERROR: {hostname}, missing site {fields['site']}, skipping.")
                 return None
 
-            if (pl_id := platforms.get(item["os_name"])) is None:
+            if (pl_id := platforms.get(fields["os_name"])) is None:
                 print(
-                    f"ERROR: {hostname}, missing platform {item['os_name']}, skipping."
+                    f"ERROR: {hostname}, missing platform {fields['os_name']}, skipping."
                 )
                 return None
 
             return nb_api.post(
                 url="/dcim/devices/",
                 json={
-                    "name": item["hostname"],
-                    "serial": item["sn"],
+                    "name": fields["hostname"],
+                    "serial": fields["sn"],
                     "device_role": role_unknwon,
                     "platform": pl_id,
                     "site": site_id,
@@ -156,11 +155,11 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
             for rec in cached_ipaddrs.source_record_keys.values()
         }
 
-        def _create_task(key, item: Changes):
+        def _create_task(key, fields: dict):
             """ key is the seriali number """
             patch_payload = {}
 
-            if (ipaddr := item.fields.get("ipaddr")) is not None:
+            if (ipaddr := fields.get("ipaddr")) is not None:
 
                 if (nb_rec := kex_lkup.get(ipaddr)) is None:
                     print(f"SKIP: ipaddr {ipaddr} not in device cache.")
@@ -179,20 +178,3 @@ class NetboxDeviceCollection(Collector, DeviceCollection):
             return api.patch(url=f"{_DEVICES_URL}{dev_id}/", json=patch_payload)
 
         await self.source.update(changes, callback, creator=_create_task)
-
-    # async def _ensure_ipaddrs(self, ipaddr_list):
-    #     col_ipaddrs = get_collection(source=self.source, name='ipaddrs')
-    #
-    #     await asyncio.gather(*(col_ipaddrs.fetch(hostname=hostname, address=ipaddr)
-    #                            for hostname, ipaddr, in ipaddr_list))
-    #
-    #     col_ipaddrs.make_keys()
-    #
-    #     # if all ipaddrs were found in Netbox, then we can return the collection now.
-    #     # otherwise we will need to create
-    #     if len(col_ipaddrs) == len(ipaddr_list):
-    #         return col_ipaddrs
-    #
-    #     breakpoint()
-    #
-    #     return col_ipaddrs
