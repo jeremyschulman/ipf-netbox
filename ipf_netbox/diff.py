@@ -4,7 +4,7 @@ from collections import namedtuple
 from ipf_netbox.collection import Collector
 
 Changes = namedtuple("Changes", ["fingerprint", "fields"])
-DiffResults = namedtuple("DiffResults", ["missing", "changes"])
+DiffResults = namedtuple("DiffResults", ["missing", "extras", "changes"])
 
 
 def diff(
@@ -41,10 +41,12 @@ def diff(
     source_from_keys = set(source_from.inventory)
 
     missing_keys = source_from_keys - sync_to_keys
+    extra_keys = sync_to_keys - source_from_keys
     shared_keys = source_from_keys & sync_to_keys
 
     # missing key dict; key=source_records-key, value=key-fingerprint
     missing_key_items = {key: source_from.inventory[key] for key in missing_keys}
+    extra_key_items = {key: sync_to.inventory[key] for key in extra_keys}
 
     changes = dict()
 
@@ -68,7 +70,9 @@ def diff(
         if len(item_changes):
             changes[key] = Changes(sync_fp, item_changes)
 
-    if not missing_key_items and not changes:
+    if not any((missing_key_items, extra_key_items, changes)):
         return None
 
-    return DiffResults(missing=missing_key_items, changes=changes)
+    return DiffResults(
+        missing=missing_key_items, changes=changes, extras=extra_key_items
+    )

@@ -146,3 +146,28 @@ class NetboxPortChanCollection(Collector, PortChannelCollection):
             )
 
         await self.source.update(changes, callback=callback, creator=_patch)
+
+    async def remove_extra(
+        self, extras: Dict, callback: Optional[CollectionCallback] = None
+    ):
+        api: NetboxClient = self.source.client
+
+        # we first need to retrieve all of the interface records
+        col_ifaces = get_collection(source=self.source, name="interfaces")
+
+        async for _ in igather(
+            (
+                col_ifaces.fetch(hostname=item["hostname"], name=item["interface"])
+                for item in extras.values()
+            ),
+            limit=100,
+        ):
+            pass
+
+        col_ifaces.make_keys()
+
+        def _patch(key, item):
+            if_rec = col_ifaces.source_record_keys[key]
+            return api.patch(_INTFS_URL + f"{if_rec['id']}/", json=dict(lag=None))
+
+        await self.source.update(extras, callback=callback, creator=_patch)

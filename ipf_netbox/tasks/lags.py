@@ -87,6 +87,9 @@ async def ensure_lags(ipf, nb, **params) -> Set[str]:
     if diff_res.changes:
         tasks.append(_diff_update(nb_col_pc, diff_res.changes))
 
+    if diff_res.extras:
+        tasks.append(_diff_extras(nb_col_pc, diff_res.extras))
+
     await asyncio.gather(*tasks)
     return hostname_set
 
@@ -118,3 +121,20 @@ async def _diff_update(col: NetboxPortChanCollection, changes: dict):
         print(f"CHANGE:OK: {ident}")
 
     await col.update_changes(changes=changes, callback=_report)
+
+
+async def _diff_extras(col: NetboxPortChanCollection, extras: dict):
+    """
+    Extras exist when an interface in Netbox is associated to a LAG, but that
+    interface is not associated to the LAG in IPF.  In these cases we need
+    to remove the relationship between the NB interface->LAG.
+    """
+
+    def _report(item, res: Response):
+        ident = f"{item['hostname']}, {item['interface']} -x {item['portchan']}"
+        if res.is_error:
+            print(f"REMOVE:FAIL: {ident}, {res.text}.")
+            return
+        print(f"REMOVE:OK: {ident}.")
+
+    await col.remove_extra(extras=extras, callback=_report)
