@@ -50,9 +50,7 @@ async def ensure_devices(ipf, netbox, **params):
     # TODO: need to add filtering capability to the netbox fetch() method.
 
     nb_col.source_records = [
-        rec
-        for rec in nb_col.source_records
-        if (rec["status"]["value"] in ["active", "offline"])
+        rec for rec in nb_col.source_records if (rec["status"]["value"] in ["active"])
     ]
 
     print(f"{len(nb_col)} items.", flush=True)
