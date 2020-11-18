@@ -33,12 +33,14 @@ _DEVICES_URL = "/dcim/devices/"
 class NetboxDeviceCollection(Collector, DeviceCollection):
     source_class = NetboxSource
 
-    async def fetch(self, **kwargs):
+    async def fetch(self, filters=None):
         """ exclude devices without a platform or primary-ip address """
+        _filters = dict(exclude="config_context")
+        if filters:
+            _filters.update(filters)
+
         self.source_records.extend(
-            await self.source.client.paginate(
-                url=_DEVICES_URL, filters={"exclude": "config_context"},
-            )
+            await self.source.client.paginate(url=_DEVICES_URL, filters=_filters)
         )
 
     def fingerprint(self, rec: Dict) -> Dict:
